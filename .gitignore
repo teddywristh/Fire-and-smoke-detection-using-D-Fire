@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+local_config.py
+.env
+
+data/processed/train/
+data/processed/val/
+data/processed/test/
+
+models/*
+!models/.gitkeep

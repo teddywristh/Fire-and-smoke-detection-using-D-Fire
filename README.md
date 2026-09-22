@@ -328,15 +328,67 @@ cd forest_fire_classification
 pip install -r requirements.txt
 ```
 
-### 3. Download the dataset
+### 3. Download and configure the dataset
 
-Download the dataset from Kaggle and place it inside:
+Download the Kaggle dataset and keep the folder that directly contains:
 
 ```text
-data/raw/
+train/
+val/
+test/
 ```
 
-### 4. Run the experiments
+By default, this project expects the dataset at:
+
+```text
+../dataset/Forect Fire/Forest Fire_Dataset
+```
+
+If your dataset is stored somewhere else, do not edit `config.py` directly. Copy the local config template:
+
+```bash
+copy local_config.example.py local_config.py
+```
+
+Then edit `local_config.py` for your own machine:
+
+```python
+from pathlib import Path
+
+DATASET_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Dataset")
+TESTER_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Tester")
+```
+
+`local_config.py` is ignored by Git, so each team member can use a different dataset location without changing tracked project files.
+
+### 4. Prepare the processed dataset
+
+Run the data preparation pipeline:
+
+```bash
+python -m src.data_loader
+```
+
+This creates:
+
+```text
+data/split.csv
+data/processed/train/
+data/processed/val/
+data/processed/test/
+data/processed/processing_report.md
+data/processed/processing_summary.json
+```
+
+The pipeline preserves the original train/validation/test split, resizes images to `224x224`, excludes `Forest Fire_Tester` from training/evaluation, and checks for duplicate files by SHA256.
+
+For full data-processing details, see:
+
+```text
+DATA_PROCESSING.md
+```
+
+### 5. Run the experiments
 
 Run the notebooks:
 
@@ -349,7 +401,7 @@ Run the notebooks:
 
 The Fine-tuning experiment should start from the best Frozen Transfer Learning model.
 
-### 5. Compare the results
+### 6. Compare the results
 
 Run:
 
