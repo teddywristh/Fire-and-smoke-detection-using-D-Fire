@@ -1,95 +1,439 @@
-# Phân loại ảnh cháy rừng và khói
+# Comparative Deep Learning Models for Forest Fire and Smoke Image Classification
 
-Dự án so sánh Basic Neural Network, Custom CNN và Transfer Learning
-(frozen backbone, fine-tuning) trên Forest Fire Image Classification Dataset.
-Hiện đã có pipeline dữ liệu và **một Basic NN hoàn chỉnh**. Các mô hình còn lại
-chưa được triển khai; thư mục notebooks/demo hiện chưa có notebook chạy được.
+## Project Overview
 
-## Dữ liệu
+This project develops and compares Deep Learning models for forest fire and smoke image classification.
 
-Nguồn: [Forest Fire Image Classification Dataset](https://www.kaggle.com/datasets/obulisainaren/forest-fire-c4).
-Tên repo có D-Fire nhưng pipeline hiện dùng bộ dữ liệu forest-fire-c4 với bốn lớp:
-`fire`, `nofire`, `smoke`, `smokefire`.
-Giữ split gốc: train 3.200, validation 800, test 800 ảnh.
+The system classifies images into four categories:
 
-Mặc định dataset nằm tại `../dataset/Forect Fire/Forest Fire_Dataset`,
-thư mục này chứa trực tiếp `train/`, `val/`, `test/`.
-Nếu dùng vị trí khác, tạo `local_config.py` ở thư mục gốc:
+- **Fire:** Fire is visible, with no clear smoke.
+- **No Fire:** Neither fire nor smoke is visible.
+- **Smoke:** Smoke is visible, but no fire can be seen.
+- **SmokeFire:** Both smoke and fire are visible.
+
+The project investigates three main Deep Learning approaches:
+
+1. **Basic Neural Network**
+2. **Custom Complex CNN**
+3. **Transfer Learning**
+   - Frozen pretrained backbone
+   - Fine-tuned pretrained backbone
+
+Although there are three main approaches, four model configurations are evaluated:
+
+| Model | Description |
+|---|---|
+| Basic Neural Network | Fully connected baseline model |
+| Custom Complex CNN | CNN designed and trained from scratch |
+| Transfer Learning – Frozen | Pretrained backbone with only the classification head trained |
+| Transfer Learning – Fine-tuned | Pretrained model with selected backbone layers fine-tuned |
+
+All models use the same dataset split and evaluation criteria to ensure a fair comparison.
+
+---
+
+## Objectives
+
+The main objectives of this project are:
+
+- Build a baseline model using a Basic Neural Network.
+- Develop a custom CNN for image classification.
+- Apply Transfer Learning using a pretrained CNN.
+- Evaluate the effect of fine-tuning.
+- Compare the performance of different model architectures.
+- Analyze common classification errors.
+- Use Grad-CAM to understand which image regions influence the final model's predictions.
+
+Special attention is given to confusion between:
+
+- `Fire` and `SmokeFire`
+- `Smoke` and `SmokeFire`
+- `Fire` predicted as `No Fire`
+- `SmokeFire` predicted as `No Fire`
+
+---
+
+## Dataset
+
+The project uses the **Forest Fire Image Classification Dataset** from Kaggle.
+
+Dataset link:
+
+https://www.kaggle.com/datasets/obulisainaren/forest-fire-c4
+
+The dataset contains four classes:
+
+| Class | Description |
+|---|---|
+| Fire | Images containing visible fire |
+| No Fire | Images without fire or smoke |
+| Smoke | Images containing smoke without visible fire |
+| SmokeFire | Images containing both smoke and fire |
+
+The dataset already provides training, validation, and test sets.
+
+The original split is preserved so that all models are trained and evaluated using the same data.
+
+A shared `split.csv` is used to keep the data split consistent across experiments.
+
+---
+
+## Models
+
+### 1. Basic Neural Network
+
+The Basic Neural Network is used as a baseline model.
+
+Example architecture:
+
+```text
+Input
+→ Flatten
+→ Dense
+→ Dropout
+→ Dense
+→ Softmax
+```
+
+This model provides a simple reference point for evaluating more advanced CNN-based approaches.
+
+---
+
+### 2. Custom Complex CNN
+
+The Custom CNN is designed and trained from scratch.
+
+Main components include:
+
+- Conv2D
+- Batch Normalization
+- Max Pooling
+- Dropout
+- Global Average Pooling
+- Dense layers
+
+Example architecture:
+
+```text
+Input
+→ Conv2D
+→ BatchNormalization
+→ MaxPooling
+→ Dropout
+→ Conv2D
+→ BatchNormalization
+→ MaxPooling
+→ Dropout
+→ GlobalAveragePooling
+→ Dense
+→ Softmax
+```
+
+The CNN learns spatial features such as flame patterns, smoke textures, colors, edges, and shapes.
+
+---
+
+### 3. Transfer Learning – Frozen Backbone
+
+A pretrained CNN such as **EfficientNetB0** or **MobileNetV2** is used as a feature extractor.
+
+```text
+Input
+→ Pretrained Backbone
+→ GlobalAveragePooling
+→ Classification Head
+→ Dropout
+→ Softmax
+```
+
+During this stage:
+
+- The pretrained backbone is frozen.
+- Only the classification head is trained.
+
+The same pretrained backbone is used for both the Frozen and Fine-tuning experiments.
+
+---
+
+### 4. Transfer Learning – Fine-tuning
+
+Fine-tuning continues from the best Frozen Transfer Learning model.
+
+Selected final layers of the pretrained backbone are unfrozen and trained using a smaller learning rate.
+
+```text
+Best Frozen Model
+→ Unfreeze Selected Layers
+→ Fine-tuning
+→ Final Model
+```
+
+This experiment evaluates whether adapting pretrained features to the forest fire dataset improves classification performance.
+
+---
+
+## Training Protocol
+
+To ensure a fair comparison:
+
+- All models use the same train, validation, and test split.
+- Data augmentation is applied only to training data.
+- Validation data is used for model selection and Early Stopping.
+- Test data is used only for final evaluation.
+- A fixed random seed is used where possible.
+- The same evaluation metrics are used for all models.
+
+Model-specific preprocessing may be applied when required by pretrained architectures.
+
+---
+
+## Evaluation Metrics
+
+Each model is evaluated using:
+
+- Accuracy
+- Precision
+- Recall
+- F1-score
+- Confusion Matrix
+- Training Accuracy
+- Validation Accuracy
+- Training Loss
+- Validation Loss
+
+Per-class performance is also analyzed for all four classes.
+
+Special attention is given to critical false-negative cases:
+
+```text
+Fire → No Fire
+SmokeFire → No Fire
+```
+
+---
+
+## Error Analysis
+
+Misclassified images are analyzed to identify common failure patterns.
+
+Important confusion cases include:
+
+```text
+Fire ↔ SmokeFire
+Smoke ↔ SmokeFire
+Fire → No Fire
+SmokeFire → No Fire
+```
+
+For selected incorrect predictions, the project examines:
+
+- Original image
+- True label
+- Predicted label
+- Prediction confidence
+
+---
+
+## Grad-CAM
+
+Grad-CAM is applied to the final fine-tuned Transfer Learning model.
+
+It is used to visualize which parts of an image contribute most strongly to the model's prediction.
+
+This helps determine whether the model focuses on meaningful regions such as fire and smoke or on irrelevant background features.
+
+---
+
+## Project Structure
+
+```text
+forest_fire_classification/
+│
+├── data/
+│   ├── raw/
+│   └── split.csv
+│
+├── notebooks/
+│   ├── 01_basic_nn.ipynb
+│   ├── 02_custom_cnn.ipynb
+│   ├── 03_transfer_frozen.ipynb
+│   └── 04_transfer_finetuning.ipynb
+│
+├── src/
+│   ├── data_loader.py
+│   ├── augmentation.py
+│   ├── models.py
+│   ├── evaluation.py
+│   ├── visualization.py
+│   └── gradcam.py
+│
+├── models/
+│   ├── basic_nn_best.keras
+│   ├── custom_cnn_best.keras
+│   ├── transfer_frozen_best.keras
+│   └── transfer_finetuned_best.keras
+│
+├── results/
+│   ├── basic_nn/
+│   ├── custom_cnn/
+│   ├── transfer_frozen/
+│   ├── transfer_finetuned/
+│   └── final_comparison.csv
+│
+├── demo/
+│   └── predict_image.ipynb
+│
+├── config.py
+├── requirements.txt
+├── .gitignore
+├── README.md
+└── main.ipynb
+```
+
+---
+
+## Requirements
+
+Main libraries used in the project:
+
+- Python
+- TensorFlow / Keras
+- NumPy
+- Pandas
+- Matplotlib
+- Scikit-learn
+- Pillow
+- Jupyter
+
+Install dependencies using:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## How to Run
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-url>
+cd forest_fire_classification
+```
+
+### 2. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Download and configure the dataset
+
+Download the Kaggle dataset and keep the folder that directly contains:
+
+```text
+train/
+val/
+test/
+```
+
+By default, this project expects the dataset at:
+
+```text
+../dataset/Forect Fire/Forest Fire_Dataset
+```
+
+If your dataset is stored somewhere else, do not edit `config.py` directly. Copy the local config template:
+
+```bash
+copy local_config.example.py local_config.py
+```
+
+Then edit `local_config.py` for your own machine:
 
 ```python
 from pathlib import Path
 
-DATASET_ROOT = Path(r"D:/dataset/Forest Fire_Dataset")
-# Chỉ cần khi dùng ảnh demo:
-TESTER_ROOT = Path(r"D:/dataset/Forest Fire_Tester")
+DATASET_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Dataset")
+TESTER_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Tester")
 ```
 
-File này được Git bỏ qua. Có thể dùng biến môi trường
-`FOREST_FIRE_DATASET_ROOT`, `FOREST_FIRE_TESTER_ROOT`, `FOREST_FIRE_DATA_DIR`
-để ghi đè đường dẫn. Không cần sửa `config.py` khi đổi máy.
+`local_config.py` is ignored by Git, so each team member can use a different dataset location without changing tracked project files.
 
-## Chạy Basic NN
+### 4. Prepare the processed dataset
 
-Mở terminal ở thư mục gốc dự án, dùng cùng môi trường Python cho các lệnh:
+Run the data preparation pipeline:
 
-```powershell
-python -m pip install -r requirements.txt
+```bash
 python -m src.data_loader
-python -m src.basic_nn
 ```
 
-Chỉ cần chuẩn bị dữ liệu khi chưa có `data/split.csv` và ảnh processed,
-hoặc khi đổi dataset. Lệnh Basic NN tự train, chọn checkpoint theo validation
-loss, đánh giá test và xuất báo cáo. Train lại sẽ thay model và kết quả hiện tại.
+This creates:
 
-Chỉ đánh giá lại model đã lưu:
-
-```powershell
-python -m src.basic_nn --evaluate-only
+```text
+data/split.csv
+data/processed/train/
+data/processed/val/
+data/processed/test/
+data/processed/processing_report.md
+data/processed/processing_summary.json
 ```
 
-Chỉ cập nhật Markdown kết quả từ CSV/JSON đã lưu; tài liệu phương pháp được giữ riêng:
+The pipeline preserves the original train/validation/test split, resizes images to `224x224`, excludes `Forest Fire_Tester` from training/evaluation, and checks for duplicate files by SHA256.
 
-```powershell
-python -m src.basic_nn --report-only
+For full data-processing details, see:
+
+```text
+DATA_PROCESSING.md
 ```
 
-## Cấu hình và kết quả
+### 5. Run the experiments
 
-Ảnh processed RGB 224×224 được resize về 64×64 khi đưa vào Basic NN,
-scale pixel về [0, 1]. Kiến trúc: Flatten → Dense(256, ReLU) → Dropout(0.5)
-→ Dense(4, Softmax). Adam learning rate 0.0005, batch size 32,
-tối đa 30 epochs, EarlyStopping patience 5, seed 42.
-Augmentation nhẹ chỉ áp dụng cho train: lật ngang, brightness, contrast.
+Run the notebooks:
 
-Checkpoint được giữ sau tuning bằng validation đạt test accuracy **59,75%**, Macro F1 **0,6006**,
-322 lỗi trên 800 ảnh. Dùng thêm ReduceLROnPlateau (factor 0.5, patience 2,
-min_lr 0.00001). Đây là kết quả lần chạy đã lưu; chạy lại có thể khác.
-Cấu hình gốc từng được chọn theo test lịch sử; đợt tuning mới chọn bằng validation
-loss rồi mới đánh giá test. Cần holdout mới để đánh giá độc lập sau lựa chọn lịch sử.
-So sánh chi tiết nằm trong báo cáo kết quả.
+```text
+01_basic_nn.ipynb
+02_custom_cnn.ipynb
+03_transfer_frozen.ipynb
+04_transfer_finetuning.ipynb
+```
 
-## Tệp chính
+The Fine-tuning experiment should start from the best Frozen Transfer Learning model.
 
-| Tệp | Vai trò |
-|---|---|
-| `config.py` | Đường dẫn, split, nhãn, chính sách xử lý dữ liệu |
-| `src/data_loader.py` | Chuẩn bị ảnh, manifest, kiểm tra SHA256 |
-| `src/preprocessing.py` | RGB, EXIF, resize, lưu JPEG |
-| `src/basic_nn.py` | Toàn bộ Basic NN: train, đánh giá, biểu đồ và báo cáo |
-| `models/basic_nn_best.keras` | Checkpoint Basic NN duy nhất |
-| `results/basic_nn/` | CSV, JSON, biểu đồ và báo cáo |
+### 6. Compare the results
 
-Model và ảnh processed không được Git theo dõi theo `.gitignore`;
-khi clone sang máy khác cần chuẩn bị dữ liệu và train, hoặc sao chép checkpoint.
+Run:
 
-## Tài liệu
+```text
+main.ipynb
+```
 
-- [Phương pháp Basic NN](results/basic_nn/basic_nn_method.md): dữ liệu, kiến trúc, quy trình và cách chạy.
-- [Kết quả Basic NN](results/basic_nn/basic_nn_results.md): huấn luyện, metrics, confusion matrix, phân tích lỗi và so sánh lịch sử.
-- [Xử lý dữ liệu](DATA_PROCESSING.md): cấu hình và quy trình pipeline đang dùng.
-- [Log xử lý dữ liệu](data/processed/processing_report.md): tự sinh bởi data loader.
+to summarize and compare all model results.
 
-Các file `augmentation.py`, `evaluation.py`, `visualization.py`, `gradcam.py`
-hiện là phần chuẩn bị cho các phương pháp tiếp theo. Grad-CAM dự kiến dùng
-cho CNN/Transfer Learning; chưa có kết quả so sánh các mô hình này.
+---
+
+## Final Comparison
+
+The final results will be summarized using a table similar to:
+
+| Model | Accuracy | Precision | Recall | F1-score |
+|---|---:|---:|---:|---:|
+| Basic Neural Network | TBD | TBD | TBD | TBD |
+| Custom Complex CNN | TBD | TBD | TBD | TBD |
+| Transfer Learning – Frozen | TBD | TBD | TBD | TBD |
+| Transfer Learning – Fine-tuned | TBD | TBD | TBD | TBD |
+
+The final conclusion will be based on the actual experimental results.
+
+---
+
+## Notes
+
+- The original dataset split is preserved.
+- All models use the same train, validation, and test sets.
+- Data augmentation is applied only to training data.
+- Frozen and Fine-tuned Transfer Learning use the same pretrained backbone.
+- Fine-tuning starts from the best Frozen model.
+- The test set is used only for final evaluation.
+- All models are evaluated using the same metrics.
