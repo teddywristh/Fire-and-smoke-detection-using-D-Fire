@@ -390,16 +390,20 @@ DATA_PROCESSING.md
 
 ### 5. Run the experiments
 
-Run the notebooks:
+Current entry points:
 
-```text
-01_basic_nn.ipynb
-02_custom_cnn.ipynb
-03_transfer_frozen.ipynb
-04_transfer_finetuning.ipynb
-```
+| Model | Entry point | Status |
+|---|---|---|
+| Basic Neural Network | `python -m src.basic_nn` (see `results/basic_nn/basic_nn_method.md`) | Done |
+| Custom Complex CNN | `notebooks/02_custom_cnn.ipynb` (see `results/custom_cnn/custom_cnn_method.md`) | Done |
+| Transfer Learning – Frozen | `notebooks/03_transfer_frozen.ipynb` | Planned |
+| Transfer Learning – Fine-tuned | `notebooks/04_transfer_finetuning.ipynb` | Planned |
 
 The Fine-tuning experiment should start from the best Frozen Transfer Learning model.
+
+Model checkpoints in `models/` are not tracked by Git. A proposal to move all
+models onto one shared training and evaluation pipeline is in
+`docs/PIPELINE_PROPOSAL.md`.
 
 ### 6. Compare the results
 

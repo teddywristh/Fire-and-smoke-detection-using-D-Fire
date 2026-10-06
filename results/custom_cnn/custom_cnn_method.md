@@ -2,6 +2,24 @@
 
 **Nhánh:** `custom-complex-cnn`
 
+> **Integration note (2026-10-06).** This file is the design guide. The run
+> recorded in `notebooks/02_custom_cnn.ipynb` (the source of every file in
+> `results/custom_cnn/`) differs from it as follows:
+>
+> - No augmentation was applied to the training split (section 2 says it was).
+> - Training ran in the notebook. `model.py`, `train.py` and `evaluate.py`
+>   (sections 5 and 10) do not exist.
+> - Optimizer was `Adam(1e-3)`. EarlyStopping (patience 12) never fired; all
+>   50 epochs ran.
+> - `metrics.json` holds accuracy, macro F1, parameter count and epochs only.
+>   The critical-error counts from section 9 were not saved. The test
+>   confusion matrix gives `fire → nofire` = 6 and `smokefire → nofire` = 0.
+> - No notebook cell produces `critical_fire_as_nofire.png`. It shows one
+>   image, while the confusion matrix has six `fire → nofire` errors.
+>
+> Re-evaluating `models/custom_cnn_best.keras` on 2026-10-06 reproduced test
+> accuracy 0.7825 and macro F1 0.7875 exactly. See `docs/PIPELINE_PROPOSAL.md`.
+
 ## 1. Tổng quan
 
 Mục tiêu của phần này là xây dựng một mô hình CNN nâng cao để phân loại ảnh cháy rừng và khói. Mô hình được train **from scratch**, tức là không sử dụng các trọng số đã được train trước.
