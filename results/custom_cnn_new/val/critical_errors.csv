@@ -1,0 +1,8 @@
+filepath,processed_filepath,label,class_index,predicted_index,predicted_label,confidence
+val/fire/fire_val_1013.jpg,data/processed/val/fire/fire_val_1013.jpg,fire,0,1,nofire,0.8727525
+val/fire/fire_val_1063.jpg,data/processed/val/fire/fire_val_1063.jpg,fire,0,1,nofire,0.48885778
+val/fire/fire_val_1088.jpg,data/processed/val/fire/fire_val_1088.jpg,fire,0,1,nofire,0.5996394
+val/fire/fire_val_1098.jpg,data/processed/val/fire/fire_val_1098.jpg,fire,0,1,nofire,0.93941474
+val/smokefire/smokefire_val_1103.jpg,data/processed/val/smokefire/smokefire_val_1103.jpg,smokefire,3,1,nofire,0.40341228
+val/smokefire/smokefire_val_1166.jpg,data/processed/val/smokefire/smokefire_val_1166.jpg,smokefire,3,1,nofire,0.55597013
+val/smokefire/smokefire_val_1198.jpg,data/processed/val/smokefire/smokefire_val_1198.jpg,smokefire,3,1,nofire,0.4304052

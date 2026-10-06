@@ -1,0 +1,45 @@
+{
+  "model_name": "Custom CNN New - Small VGG with BN and GAP",
+  "evaluation_split": "val",
+  "val_accuracy": 0.8975,
+  "val_macro_f1": 0.8967514966310148,
+  "val_macro_precision": 0.901234830121359,
+  "val_macro_recall": 0.8975,
+  "val_loss": 0.44593608379364014,
+  "critical_fire_as_nofire": 4,
+  "critical_smokefire_as_nofire": 3,
+  "misclassified_count": 82,
+  "total_parameters": 1176164,
+  "epochs_trained": 40,
+  "training_config": {
+    "model_name": "Custom CNN New - Small VGG with BN and GAP",
+    "input_shape": [
+      224,
+      224,
+      3
+    ],
+    "class_names": [
+      "fire",
+      "nofire",
+      "smoke",
+      "smokefire"
+    ],
+    "filters": [
+      32,
+      64,
+      128,
+      256
+    ],
+    "convs_per_block": 2,
+    "dropout_rate": 0.3,
+    "learning_rate": 0.001,
+    "label_smoothing": 0.05,
+    "batch_size": 32,
+    "max_epochs": 50,
+    "patience": 12,
+    "seed": 42,
+    "checkpoint_monitor": "val_loss",
+    "data_pipeline": "src.datasets (unchanged shared augmentation)",
+    "tensorflow_version": "2.21.0"
+  }
+}
