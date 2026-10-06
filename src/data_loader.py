@@ -58,8 +58,9 @@ def project_relative(path: Path) -> str:
     return os.path.relpath(path.resolve(), config.PROJECT_ROOT).replace(os.sep, "/")
 
 
-def external_relative(path: Path) -> str:
-    return os.path.relpath(path.resolve(), config.PROJECT_ROOT).replace(os.sep, "/")
+def dataset_relative(path: Path) -> str:
+    """Path inside DATASET_ROOT, so the manifest is identical on every machine."""
+    return path.relative_to(config.DATASET_ROOT).as_posix()
 
 
 def expected_processed_path(source_path: Path, split: str, label: str) -> Path:
@@ -129,7 +130,7 @@ def prepare_dataset() -> list[ManifestRow]:
 
         rows.append(
             ManifestRow(
-                filepath=external_relative(source_path),
+                filepath=dataset_relative(source_path),
                 processed_filepath=project_relative(destination_path),
                 split=split,
                 label=label,
@@ -166,7 +167,7 @@ def write_manifest(rows: list[ManifestRow]) -> None:
     config.SPLIT_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = list(asdict(rows[0]).keys()) if rows else [field.name for field in ManifestRow.__dataclass_fields__.values()]
     with config.SPLIT_CSV_PATH.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer = csv.DictWriter(file, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow(asdict(row))
@@ -213,7 +214,7 @@ def write_report(rows: list[ManifestRow]) -> None:
     )
 
     summary = {
-        "dataset_root": external_relative(config.DATASET_ROOT),
+        "raw_filepath_base": "config.DATASET_ROOT",
         "processed_data_dir": project_relative(config.PROCESSED_DATA_DIR),
         "manifest": project_relative(config.SPLIT_CSV_PATH),
         "image_size": config.IMAGE_SIZE,
@@ -229,7 +230,7 @@ def write_report(rows: list[ManifestRow]) -> None:
         "notes": dict(notes),
     }
 
-    with config.PROCESSING_SUMMARY_PATH.open("w", encoding="utf-8") as file:
+    with config.PROCESSING_SUMMARY_PATH.open("w", newline="\n", encoding="utf-8") as file:
         json.dump(summary, file, indent=2)
 
     lines = [
@@ -239,7 +240,7 @@ def write_report(rows: list[ManifestRow]) -> None:
         "",
         "## Decisions",
         "",
-        f"- Raw dataset root: `{external_relative(config.DATASET_ROOT)}`",
+        "- Raw dataset root: `config.DATASET_ROOT` (set per machine; manifest `filepath` is relative to it)",
         f"- Processed dataset root: `{project_relative(config.PROCESSED_DATA_DIR)}`",
         f"- Manifest: `{project_relative(config.SPLIT_CSV_PATH)}`",
         f"- Target image size: `{config.IMAGE_SIZE[0]}x{config.IMAGE_SIZE[1]}`",
@@ -291,7 +292,7 @@ def write_report(rows: list[ManifestRow]) -> None:
         ]
     )
 
-    config.PROCESSING_REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    config.PROCESSING_REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
 def write_sample_grids(rows: list[ManifestRow], samples_per_class: int = 4) -> None:
