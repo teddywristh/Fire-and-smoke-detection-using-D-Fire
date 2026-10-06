@@ -8,6 +8,5 @@ data/processed/train/
 data/processed/val/
 data/processed/test/
 
-models/*
 !models/.gitkeep
 *.jpg
