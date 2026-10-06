@@ -274,6 +274,12 @@ Khi train model, nen doc tu `data/split.csv` va dung cot:
 
 Augmentation chi ap dung runtime cho cac dong co `split == "train"`. Validation va test chi resize/normalize theo dung preprocessing cua model, khong augmentation.
 
+Shared loader: `src/datasets.py` turns `data/split.csv` into `tf.data` datasets
+for every model (224x224, pixels in [0, 255], one-hot labels, train-only
+augmentation from `src/augmentation.py`). Each model resizes and normalizes
+inside its own file in `src/models/`. The `filepath` column is relative to
+`DATASET_ROOT`, so `data/split.csv` is the same on every machine.
+
 ## 13. Doi duong dan dataset khi lam nhom
 
 Khong nen sua truc tiep `config.py` moi khi doi may, vi file nay se duoc push len Git. Cach khuyen dung:

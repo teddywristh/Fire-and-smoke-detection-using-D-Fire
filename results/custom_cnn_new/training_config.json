@@ -1,0 +1,31 @@
+{
+  "model_name": "Custom CNN New - Small VGG with BN and GAP",
+  "input_shape": [
+    224,
+    224,
+    3
+  ],
+  "class_names": [
+    "fire",
+    "nofire",
+    "smoke",
+    "smokefire"
+  ],
+  "filters": [
+    32,
+    64,
+    128,
+    256
+  ],
+  "convs_per_block": 2,
+  "dropout_rate": 0.3,
+  "learning_rate": 0.001,
+  "label_smoothing": 0.05,
+  "batch_size": 32,
+  "max_epochs": 50,
+  "patience": 12,
+  "seed": 42,
+  "checkpoint_monitor": "val_loss",
+  "data_pipeline": "src.datasets (unchanged shared augmentation)",
+  "tensorflow_version": "2.21.0"
+}

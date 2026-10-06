@@ -260,9 +260,14 @@ forest_fire_classification/
 │   └── 04_transfer_finetuning.ipynb
 │
 ├── src/
-│   ├── data_loader.py
-│   ├── augmentation.py
-│   ├── models.py
+│   ├── data_loader.py        # shared: builds split.csv and processed images
+│   ├── datasets.py           # shared: split.csv -> tf.data for every model
+│   ├── augmentation.py       # shared: train-only augmentation policy
+│   ├── models/               # one file per model, owned by one person
+│   │   ├── basic_nn.py
+│   │   ├── custom_cnn.py
+│   │   ├── transfer_frozen.py
+│   │   └── transfer_finetuned.py
 │   ├── evaluation.py
 │   ├── visualization.py
 │   └── gradcam.py
@@ -390,16 +395,30 @@ DATA_PROCESSING.md
 
 ### 5. Run the experiments
 
-Run the notebooks:
+All models share one data pipeline (`src/datasets.py`): the same split, the
+same 224×224 input with pixel values in [0, 255], one-hot labels, and the same
+train-only augmentation (`src/augmentation.py`). Each model lives in its own
+file under `src/models/`, which holds its architecture, training settings and
+evaluation, and does its own resizing and scaling as its first layers. The
+contract is described in `src/models/__init__.py`.
 
-```text
-01_basic_nn.ipynb
-02_custom_cnn.ipynb
-03_transfer_frozen.ipynb
-04_transfer_finetuning.ipynb
-```
+| Model | Run | Status |
+|---|---|---|
+| Basic Neural Network | `python -m src.models.basic_nn` | v1 results recorded; re-run needed on the shared pipeline |
+| Custom Complex CNN | `python -m src.models.custom_cnn` | v1 results recorded (`notebooks/02_custom_cnn.ipynb`); re-run needed on the shared pipeline |
+| Transfer Learning – Frozen | `python -m src.models.transfer_frozen` | Planned |
+| Transfer Learning – Fine-tuned | `python -m src.models.transfer_finetuned` | Planned |
 
-The Fine-tuning experiment should start from the best Frozen Transfer Learning model.
+Add `--evaluate-only` to evaluate a saved checkpoint without training. The
+Fine-tuning experiment should start from the best Frozen Transfer Learning model.
+
+To add a model, create `src/models/<name>.py` that builds the model on
+`src.datasets.INPUT_SHAPE`, trains with `src.datasets.load_datasets()` (or
+`load_frames()` + `make_dataset()`), saves `models/<name>_best.keras` and writes
+its outputs to `results/<name>/`. Use `src/models/custom_cnn.py` as an example.
+
+Model checkpoints in `models/` are not tracked by Git. Background and next
+steps are in `docs/PIPELINE_PROPOSAL.md`.
 
 ### 6. Compare the results
 
