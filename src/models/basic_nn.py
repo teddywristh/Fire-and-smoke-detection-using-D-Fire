@@ -1,6 +1,6 @@
-"""Basic NN: load data -> Sequential -> compile -> fit -> evaluate.
+"""Basic NN: shared data pipeline -> Sequential -> compile -> fit -> evaluate.
 
-Run: python -m src.basic_nn
+Run: python -m src.models.basic_nn
 Options: --evaluate-only (saved model), --report-only (saved results).
 """
 
@@ -16,6 +16,7 @@ import pandas as pd
 from sklearn.metrics import classification_report, confusion_matrix
 
 import config
+from src.datasets import INPUT_SHAPE, load_frames, make_dataset
 
 INPUT_SIZE = (64, 64)
 DENSE_UNITS = 256
@@ -28,57 +29,19 @@ MODEL_PATH = config.PROJECT_ROOT / 'models' / 'basic_nn_best.keras'
 RESULT_DIR = config.PROJECT_ROOT / 'results' / 'basic_nn'
 
 
-def load_data():
-    if not config.SPLIT_CSV_PATH.exists():
-        raise FileNotFoundError('Prepare data first: python -m src.data_loader')
-    frame = pd.read_csv(config.SPLIT_CSV_PATH)
-    required = {'processed_filepath', 'split', 'label', 'class_index', 'status'}
-    if not required.issubset(frame.columns):
-        raise ValueError('Invalid split.csv columns')
-    frame = frame[frame['status'] == 'ok'].copy()
-    frame['class_index'] = frame['class_index'].astype(int)
-    if not frame['label'].map(config.CLASS_TO_INDEX).equals(frame['class_index']):
-        raise ValueError('Labels do not match the class indices')
-    frame['path'] = frame['processed_filepath'].map(
-        lambda path: str((config.PROJECT_ROOT / path).resolve()))
-    splits = [frame[frame['split'] == split].reset_index(drop=True)
-              for split in config.SPLITS]
-    if any(part.empty for part in splits):
-        raise ValueError('Train, validation and test must all contain images')
-    return splits
-
-
-def make_dataset(frame, training=False):
-    dataset = tf.data.Dataset.from_tensor_slices(
-        (frame['path'].to_numpy(), frame['class_index'].to_numpy()))
-    if training:
-        dataset = dataset.shuffle(len(frame), seed=config.RANDOM_SEED)
-
-    def read_image(path, label):
-        image = tf.image.decode_jpeg(tf.io.read_file(path), channels=3)
-        image = tf.image.resize(image, INPUT_SIZE) / 255.0
-        if training:
-            image = tf.image.random_flip_left_right(image)
-            image = tf.image.random_brightness(image, max_delta=0.08)
-            image = tf.image.random_contrast(image, lower=0.9, upper=1.1)
-            image = tf.clip_by_value(image, 0.0, 1.0)
-        return image, label
-
-    return dataset.map(read_image, num_parallel_calls=tf.data.AUTOTUNE).batch(
-        BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
-
-
 def build_model():
+    # The shared pipeline gives 224x224 pixels in [0, 255]; resize and scale here.
     model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(*INPUT_SIZE, 3)),
+        tf.keras.layers.Input(shape=INPUT_SHAPE),
+        tf.keras.layers.Resizing(*INPUT_SIZE),
+        tf.keras.layers.Rescaling(1 / 255),
         tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(DENSE_UNITS, activation='relu'),
         tf.keras.layers.Dropout(DROPOUT_RATE),
         tf.keras.layers.Dense(len(config.CLASS_NAMES), activation='softmax'),
     ], name='basic_neural_network')
-    # Integer labels 0..3: sparse cross-entropy equals one-hot cross-entropy.
     model.compile(optimizer=tf.keras.optimizers.Adam(LEARNING_RATE),
-                  loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+                  loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
 
@@ -117,7 +80,7 @@ def plot_results(history, matrix, mistakes):
 
 
 def evaluate(model, test, settings):
-    dataset = make_dataset(test)
+    dataset = make_dataset(test, batch_size=BATCH_SIZE)
     loss, accuracy = model.evaluate(dataset, verbose=0)
     probabilities = model.predict(dataset, verbose=0)
     predicted = probabilities.argmax(axis=1)
@@ -273,12 +236,13 @@ def main():
     tf.keras.utils.set_random_seed(config.RANDOM_SEED)
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    train, val, test = load_data()
+    frames = load_frames()
+    train, val, test = (frames[split] for split in config.SPLITS)
     print(f'Train: {len(train)}, validation: {len(val)}, test: {len(test)}')
     settings = dict(input_size=list(INPUT_SIZE), dense_units=DENSE_UNITS,
         dropout_rate=DROPOUT_RATE, learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE,
         epochs=EPOCHS, patience=PATIENCE, seed=config.RANDOM_SEED,
-        reduce_lr_on_plateau=True)
+        reduce_lr_on_plateau=True, data_pipeline='src.datasets (shared augmentation)')
     if args.evaluate_only:
         if not MODEL_PATH.exists() or not (RESULT_DIR / 'training_history.csv').exists():
             raise FileNotFoundError('Missing saved model or training history')
@@ -294,10 +258,14 @@ def main():
             tf.keras.callbacks.ModelCheckpoint(MODEL_PATH, monitor='val_loss', save_best_only=True),
             tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=PATIENCE),
         ]
-        history = model.fit(make_dataset(train, training=True), validation_data=make_dataset(val),
+        history = model.fit(make_dataset(train, training=True, batch_size=BATCH_SIZE),
+                            validation_data=make_dataset(val, batch_size=BATCH_SIZE),
                             epochs=EPOCHS, callbacks=callbacks, verbose=1)
         pd.DataFrame(history.history).to_csv(RESULT_DIR / 'training_history.csv', index=False)
     model = tf.keras.models.load_model(MODEL_PATH)
+    if not any(isinstance(layer, tf.keras.layers.Rescaling) for layer in model.layers):
+        raise ValueError('Checkpoint predates the shared data pipeline (expects 64x64 inputs '
+                         'in [0, 1]); retrain with python -m src.models.basic_nn')
     metrics = evaluate(model, test, settings)
     write_results_report()
     print(f"Done. Test accuracy: {metrics['test_accuracy']:.3%}; Macro F1: {metrics['macro_f1']:.4f}")
