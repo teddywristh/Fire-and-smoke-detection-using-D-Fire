@@ -19,6 +19,17 @@
 >
 > Re-evaluating `models/custom_cnn_best.keras` on 2026-10-06 reproduced test
 > accuracy 0.7825 and macro F1 0.7875 exactly. See `docs/PIPELINE_PROPOSAL.md`.
+>
+> **Code location.** The architecture and training settings now live in
+> `src/models/custom_cnn.py` (run `python -m src.models.custom_cnn`), on the
+> shared data pipeline (`src/datasets.py`). That pipeline adds train-only
+> augmentation, and scaling to [0, 1] is done by a `Rescaling` layer inside the
+> model. With the v1 weights loaded, the new model gives the same test accuracy
+> (0.7825). The file also saves `classification_report.csv`,
+> `confusion_matrix.csv`, `misclassified.csv`, `critical_errors.png` and the
+> critical-error counts in `metrics.json`. The notebook stays as the record of
+> the v1 run. The v1 checkpoint expects inputs in [0, 1], so `--evaluate-only`
+> rejects it; retrain to get results on the shared pipeline.
 
 ## 1. Tổng quan
 

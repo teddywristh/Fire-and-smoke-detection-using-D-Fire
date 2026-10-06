@@ -1,6 +1,41 @@
 # Proposal: one shared training and evaluation pipeline
 
-Status: proposal for team review · 2026-10-06
+Status: phase 1 implemented (shared data pipeline, one file per model) · 2026-10-06
+
+## Decision and current scope
+
+For now the team shares **only the data pipeline**. Each person owns one file
+in `src/models/`, holding their model's architecture, training settings and
+evaluation. Shared training, evaluation and the result contract (Sections
+5.1–5.3 beyond data) are deferred.
+
+Implemented in phase 1:
+
+- Manifest made machine-independent (Section 5.4): `filepath` is relative to
+  `DATASET_ROOT`, written with LF endings. Only that column changed, and
+  processed images are byte-identical.
+- `src/datasets.py`: `load_frames()`, `make_dataset()`, `load_datasets()`.
+  Every model gets 224×224 float32 images in [0, 255] and one-hot labels.
+  Train is shuffled and augmented; val and test keep the manifest order.
+- `src/augmentation.py`: `build_augmentation()` implements the existing
+  policy for every model (flip, rotation ±10°, shift and zoom 10%, brightness
+  ×0.8–1.2), applied to train batches only. No aspect-ratio jitter yet.
+- `src/models/basic_nn.py` (moved from `src/basic_nn.py`) and
+  `src/models/custom_cnn.py` (ported from the notebook). Each model resizes
+  and scales as its first layers. The contract is in `src/models/__init__.py`.
+
+Checks run on 2026-10-06:
+
+- Loading the v1 Custom CNN weights into `src/models/custom_cnn.py` and
+  predicting through `src/datasets.py` gives test accuracy 0.7825, the same as
+  the v1 run. So the architecture port and the data loading are exact.
+- Both model files trained for one epoch on a small subset, evaluated, and
+  ran `--evaluate-only`, with outputs redirected to a scratch folder.
+- Checkpoints from the old pipeline are rejected by `--evaluate-only` before
+  any file is written.
+
+The recorded results in `results/basic_nn/` and `results/custom_cnn/` come
+from the old pipelines. Both models need a re-run before the final comparison.
 
 ## Summary
 
@@ -174,6 +209,10 @@ results/<model>/        # fixed set of files (5.3)
 
 ### 5.2 What a model branch writes
 
+> Phase 1 has no `ModelSpec` or shared trainer. Each file in `src/models/` uses
+> plain module constants and its own `fit`/evaluate code; see
+> `src/models/custom_cnn.py`. The sketch below is the later target.
+
 A model file only describes the model and its training settings:
 
 ```python
@@ -286,13 +325,13 @@ Before committing:
 
 ## 7. Migration plan
 
-| Step | Owner | Work |
-|---|---|---|
-| 1 | One person, shared branch | Implement 5.1–5.4: `datasets.py`, `augmentation.py`, `training.py`, `evaluation.py`, `visualization.py`, `run.py`, `compare.py`, the model registry, the manifest fix |
-| 2 | Basic NN owner | Port `src/basic_nn.py` to `src/models/basic_nn.py`. Re-run with the shared pipeline. Keep `experiment_comparison.csv` as history. Commit or remove the tuning code behind `tuning_summary.json` |
-| 3 | Custom CNN owner | Port the notebook model to `src/models/custom_cnn.py`. Re-run with the shared augmentation (the current run has none). Turn the notebook into a thin driver. Train on WSL2 or a GPU machine if possible |
-| 4 | Transfer Learning owners | Start directly on the standard: `transfer_frozen.py`, then `transfer_finetuned.py` loading the best frozen checkpoint |
-| 5 | Anyone | `main.ipynb` reads `results/final_comparison.csv`; Grad-CAM on the fine-tuned model |
+| Step | Owner | Work | Status |
+|---|---|---|---|
+| 1 | One person, shared branch | Data part: manifest fix, `datasets.py`, `augmentation.py`. Later: `training.py`, `evaluation.py`, `visualization.py`, `run.py`, `compare.py` | Data part done; rest deferred |
+| 2 | Basic NN owner | Port to `src/models/basic_nn.py` (done). Re-run with the shared pipeline. Keep `experiment_comparison.csv` as history. Commit or remove the tuning code behind `tuning_summary.json` | Re-run pending |
+| 3 | Custom CNN owner | Port to `src/models/custom_cnn.py` (done). Re-run with the shared augmentation (the v1 run has none). Train on WSL2 or a GPU machine if possible | Re-run pending |
+| 4 | Transfer Learning owners | Create `src/models/transfer_frozen.py`, then `transfer_finetuned.py` loading the best frozen checkpoint. Follow `src/models/__init__.py` | Not started |
+| 5 | Anyone | `main.ipynb` builds the comparison from each `results/<model>/metrics.json`; Grad-CAM on the fine-tuned model | Not started |
 
 The current results of Steps 2 and 3 stay valid until re-run. After the
 re-run, any difference in numbers should be explained by the pipeline change
@@ -300,11 +339,10 @@ re-run, any difference in numbers should be explained by the pipeline change
 
 ## 8. Decisions needed from the team
 
-1. **Input contract.** Recommended: one dataset for all models (224×224,
-   [0, 255]), with resizing and scaling inside each model. The alternative is a
-   separate dataset per model.
-2. **Augmentation.** Recommended: one shared policy for every model, so the
-   comparison is fair. Should it include aspect-ratio jitter (Section 3)?
+1. **Input contract.** *Decided and implemented:* one dataset for all models
+   (224×224, [0, 255]), with resizing and scaling inside each model.
+2. **Augmentation.** *Decided and implemented:* one shared policy for every
+   model. Still open: should it include aspect-ratio jitter (Section 3)?
 3. **Entry point.** Recommended: `python -m src.run` as the source of truth,
    with notebooks for presentation. The alternative is notebook-only.
 4. **Checkpoint sharing.** Google Drive folder or GitHub Release assets, with
