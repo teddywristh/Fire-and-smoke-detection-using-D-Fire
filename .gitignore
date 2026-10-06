@@ -10,3 +10,4 @@ data/processed/test/
 
 models/*
 !models/.gitkeep
+*.jpg

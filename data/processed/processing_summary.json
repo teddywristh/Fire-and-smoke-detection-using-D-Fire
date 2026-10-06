@@ -1,5 +1,5 @@
 {
-  "dataset_root": "../dataset/Forect Fire/Forest Fire_Dataset",
+  "dataset_root": "data/raw/Fire_dataset/Forect Fire/Forest Fire_Dataset",
   "processed_data_dir": "data/processed",
   "manifest": "data/split.csv",
   "image_size": [
