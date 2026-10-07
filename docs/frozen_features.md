@@ -34,7 +34,7 @@ The "square" group uses a width/height ratio of 0.90–1.10; the "wide" group us
 
 ### ResNet-50, EfficientNet-B0, MobileNetV3-Large, and Xception baseline
 
-The script `src/frozen_transfer.py` initializes an ImageNet pretrained backbone, sets `requires_grad=False` for the feature extractor, and only trains the classification head. The backbone is run once to cache the train/validation feature vectors; a horizontally flipped view of the training data is also cached to alternate augmentation when training the head.
+The script `src/training/frozen_transfer.py` initializes an ImageNet pretrained backbone, sets `requires_grad=False` for the feature extractor, and only trains the classification head. The backbone is run once to cache the train/validation feature vectors; a horizontally flipped view of the training data is also cached to alternate augmentation when training the head.
 
 * Loss: `CrossEntropyLoss`.
 * Optimizer: Adam, default learning rate `1e-3`.
@@ -46,8 +46,8 @@ The script `src/frozen_transfer.py` initializes an ImageNet pretrained backbone,
 Commands to run the baselines:
 
 ```powershell
-python -m src.frozen_transfer --architecture resnet50 --epochs 20 --batch-size 32
-python -m src.frozen_transfer --architecture xception --epochs 20 --batch-size 32
+python -m src.training.frozen_transfer --architecture resnet50 --epochs 20 --batch-size 32
+python -m src.training.frozen_transfer --architecture xception --epochs 20 --batch-size 32
 
 ```
 
@@ -55,7 +55,7 @@ ResNet/EfficientNet/MobileNet use a standard 224×224 preprocessing with ImageNe
 
 ### Xception aspect robust, letterbox and feature cache
 
-The script `src.xception_aspect_frozen.py` is a separate pipeline that reads raw images, applies letterboxing to make them square, caches frozen features by split, and reports additional metrics by aspect group. The backbone is `timm`'s `legacy_xception`, ImageNet pretrained, using pooling to output a 2048-dimensional feature vector. Normalization is taken from the pretrained Xception config: mean/std `(0.5, 0.5, 0.5)`, scaling RGB to `[-1, 1]`.
+The script `src.training.xception_aspect_frozen.py` is a separate pipeline that reads raw images, applies letterboxing to make them square, caches frozen features by split, and reports additional metrics by aspect group. The backbone is `timm`'s `legacy_xception`, ImageNet pretrained, using pooling to output a 2048-dimensional feature vector. Normalization is taken from the pretrained Xception config: mean/std `(0.5, 0.5, 0.5)`, scaling RGB to `[-1, 1]`.
 
 The classification head used in the letterbox runs:
 
@@ -70,7 +70,7 @@ Trained with AdamW (`lr=5e-4`, weight decay `1e-4`), ReduceLROnPlateau, and earl
 Command to run the 299×299 letterbox (older runs):
 
 ```powershell
-python -m src.xception_aspect_frozen --epochs 30 --batch-size 32 --cpu-threads 4
+python -m src.training.xception_aspect_frozen --epochs 30 --batch-size 32 --cpu-threads 4
 
 ```
 
@@ -107,7 +107,7 @@ Calibration bias was optimized on the validation set (`fire +0.11`, `nofire +0.0
 
 ### New Aspect-Aware Split and Xception Square Crop
 
-To introduce wide `smokefire` images into the validation set, `src.create_aspect_split` reshuffles **only the old train+validation pool**, maintaining exact test membership while checking for raw SHA256 duplicates. The new manifest is `data/split_aspect.csv`; each class contains 800 train and 200 validation images. Given the current data source, wide `smokefire` images are split into 8 train and 4 validation. While this creates a preliminary check for the wide group, the validation set still lacks sufficient wide `smokefire` images to provide a reliable estimate or fully represent the test distribution.
+To introduce wide `smokefire` images into the validation set, `src.data.create_aspect_split` reshuffles **only the old train+validation pool**, maintaining exact test membership while checking for raw SHA256 duplicates. The new manifest is `data/split_aspect.csv`; each class contains 800 train and 200 validation images. Given the current data source, wide `smokefire` images are split into 8 train and 4 validation. While this creates a preliminary check for the wide group, the validation set still lacks sufficient wide `smokefire` images to provide a reliable estimate or fully represent the test distribution.
 
 A new experiment uses Xception frozen at 224×224:
 
@@ -147,21 +147,21 @@ The diagnostic code block utilizing `frames["test"]` to extract test features an
 Create the aspect-aware split (reproducible with the project's default seed):
 
 ```powershell
-python -m src.create_aspect_split --output data/split_aspect.csv
+python -m src.data.create_aspect_split --output data/split_aspect.csv
 
 ```
 
 Run Xception frozen with square-crop 224×224 and balanced sampling across class/aspect:
 
 ```powershell
-python -m src.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32 --cpu-threads 4
+python -m src.training.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32 --cpu-threads 4
 
 ```
 
 Artifacts generated by the new run:
 
 * Manifest: `data/split_aspect.csv`.
-* Code: `src/create_aspect_split.py`, `src/xception_aspect_frozen.py`.
+* Code: `src/data/create_aspect_split.py`, `src/training/xception_aspect_frozen.py`.
 * Report: `results/transfer_frozen/xception_square_aspect_balanced_224/summary.md`.
 * History/metrics: `training_history.csv`, `validation_classification_report.json`, `validation_confusion_matrix.csv/.png`, `validation_aspect_group_metrics.json` (inside the report directory).
 * Checkpoint: `models/transfer_frozen/xception_square_aspect_balanced_224_best.pt`.

@@ -263,12 +263,22 @@ forest_fire_classification/
 │   └── 04_transfer_finetuning.ipynb
 │
 ├── src/
-│   ├── data_loader.py
-│   ├── augmentation.py
-│   ├── models.py
-│   ├── evaluation.py
-│   ├── visualization.py
-│   └── gradcam.py
+│   ├── data/
+│   │   ├── data_loader.py
+│   │   ├── download_dataset.py
+│   │   ├── create_aspect_split.py
+│   │   └── preprocessing.py
+│   ├── training/
+│   │   ├── frozen_transfer.py
+│   │   ├── frozen_multilabel.py
+│   │   ├── fine_tune_transfer.py
+│   │   ├── xception_aspect_frozen.py
+│   │   └── calibrate_frozen.py
+│   └── analysis/
+│       ├── augmentation.py
+│       ├── evaluation.py
+│       ├── visualization.py
+│       └── gradcam.py
 │
 ├── models/
 │   ├── basic_nn_best.keras
@@ -370,18 +380,18 @@ To download the public C4 dataset from Kaggle and prepare it in one step, instal
 the requirements and run:
 
 ```bash
-python -m src.download_dataset
+python -m src.data.download_dataset
 ```
 
 KaggleHub caches the download under `data/raw/kagglehub/`; the script locates the
 dataset's `train/val/test` folders and runs the existing preprocessing pipeline.
 Alternatively, if the raw dataset is already on disk, configure `DATASET_ROOT`
-as described above and run `python -m src.data_loader`.
+as described above and run `python -m src.data.data_loader`.
 
 The data preparation command (also run automatically by the Kaggle download script) is:
 
 ```bash
-python -m src.data_loader
+python -m src.data.data_loader
 ```
 
 This creates:
@@ -416,13 +426,13 @@ The PyTorch frozen transfer baseline can be run directly from the shared CSV
 manifest (the processed image folders must already exist):
 
 ```bash
-python -m src.frozen_transfer --architecture resnet50 --epochs 20 --batch-size 32
+python -m src.training.frozen_transfer --architecture resnet50 --epochs 20 --batch-size 32
 ```
 
 To run the frozen Xception experiment with its ImageNet 299×299 input:
 
 ```bash
-python -m src.frozen_transfer --architecture xception --epochs 20 --batch-size 32
+python -m src.training.frozen_transfer --architecture xception --epochs 20 --batch-size 32
 ```
 
 Supported architectures are `resnet50`, `efficientnet_b0`,
@@ -440,8 +450,8 @@ The Xception run report is available at
 The current aspect-aware frozen Xception experiment uses square crops, class/aspect-aware training sampling, and a rebalanced development split. It selects its checkpoint on validation only and does not load test images/features. From the project root, create the split and run it with:
 
 ```powershell
-python -m src.create_aspect_split --output data/split_aspect.csv
-python -m src.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32 --cpu-threads 4
+python -m src.data.create_aspect_split --output data/split_aspect.csv
+python -m src.training.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32 --cpu-threads 4
 ```
 
 The run reached 89.88% validation accuracy and 89.84% validation macro F1 at epoch 28. Its validation contains only four wide `smokefire` images, so it is not enough to estimate wide-camera performance reliably. Full results and limitations are documented in [`frozen_features.md`](frozen_features.md), with run artifacts under `results/transfer_frozen/xception_square_aspect_balanced_224/`.
@@ -452,7 +462,7 @@ To run the aspect-robust Xception experiment as a separate branch from the
 unchanged ResNet pipeline:
 
 ```powershell
-python -m src.xception_aspect_frozen --epochs 30 --batch-size 32
+python -m src.training.xception_aspect_frozen --epochs 30 --batch-size 32
 ```
 
 The pretrained Xception input is 299×299 by default. To compare another
@@ -477,7 +487,7 @@ The 224×224 comparison is at
 Fine-tune the final ResNet-50 block from the best frozen checkpoint with:
 
 ```bash
-python -m src.fine_tune_transfer --epochs 8 --batch-size 32
+python -m src.training.fine_tune_transfer --epochs 8 --batch-size 32
 ```
 
 Earlier backbone blocks and BatchNorm running statistics remain frozen. The
@@ -488,7 +498,7 @@ An experimental two-output fire/smoke classifier can be compared with the
 four-class softmax baseline using:
 
 ```bash
-python -m src.frozen_multilabel --epochs 20 --batch-size 32
+python -m src.training.frozen_multilabel --epochs 20 --batch-size 32
 ```
 
 ### 6. Compare the results

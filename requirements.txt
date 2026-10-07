@@ -1,4 +1,8 @@
 tensorflow
+torch
+torchvision
+timm
+kagglehub
 numpy
 pandas
 matplotlib

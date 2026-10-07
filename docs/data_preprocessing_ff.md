@@ -177,12 +177,22 @@ Fire-and-smoke-detection-using-D-Fire/
 |   `-- transfer_finetuned/
 `-- src/
     |-- __init__.py
-    |-- augmentation.py
-    |-- data_loader.py
-    |-- evaluation.py
-    |-- gradcam.py
-    |-- preprocessing.py
-    `-- visualization.py
+    |-- data/
+    |   |-- data_loader.py
+    |   |-- download_dataset.py
+    |   |-- create_aspect_split.py
+    |   `-- preprocessing.py
+    |-- training/
+    |   |-- frozen_transfer.py
+    |   |-- frozen_multilabel.py
+    |   |-- fine_tune_transfer.py
+    |   |-- xception_aspect_frozen.py
+    |   `-- calibrate_frozen.py
+    `-- analysis/
+        |-- augmentation.py
+        |-- evaluation.py
+        |-- gradcam.py
+        `-- visualization.py
 ```
 
 ## 8. Checklist truoc khi code
@@ -205,7 +215,7 @@ Fire-and-smoke-detection-using-D-Fire/
 Da chay pipeline xu ly data bang lenh:
 
 ```bash
-python -m src.data_loader
+python -m src.data.data_loader
 ```
 
 Cac file/thuc muc chinh da sinh ra:
@@ -249,9 +259,9 @@ Khong co mot resize policy chung cho moi run frozen. Cac pipeline da dung la:
 | Pipeline | Input | Hinh hoc | Normalize | Ghi chu |
 |---|---:|---|---|---|
 | ResNet-50/EfficientNet/MobileNet baseline | 224x224 | Direct resize | ImageNet mean/std `(0.485, 0.456, 0.406)` / `(0.229, 0.224, 0.225)` | Doc anh processed tu `data/split.csv` |
-| Xception baseline (`src.frozen_transfer`) | 299x299 | Resize truc tiep | ImageNet mean/std chung | Run lich su; normalization khong theo cfg Xception |
-| Xception aspect letterbox (`src.xception_aspect_frozen`) | 64/224/256/299 | Giu aspect, padding den | Xception mean/std `(0.5, 0.5, 0.5)` | Vien padding co the de lo aspect ratio |
-| Xception aspect square (`src.xception_aspect_frozen`) | 224x224 | Train random square crop; val center square crop | Xception mean/std `(0.5, 0.5, 0.5)`, pixel vao `[-1,1]` | Run hien tai; khong tao vien den tu aspect padding |
+| Xception baseline (`src.training.frozen_transfer`) | 299x299 | Resize truc tiep | ImageNet mean/std chung | Run lich su; normalization khong theo cfg Xception |
+| Xception aspect letterbox (`src.training.xception_aspect_frozen`) | 64/224/256/299 | Giu aspect, padding den | Xception mean/std `(0.5, 0.5, 0.5)` | Vien padding co the de lo aspect ratio |
+| Xception aspect square (`src.training.xception_aspect_frozen`) | 224x224 | Train random square crop; val center square crop | Xception mean/std `(0.5, 0.5, 0.5)`, pixel vao `[-1,1]` | Run hien tai; khong tao vien den tu aspect padding |
 
 Square crop loai bo pattern vien den ma letterbox tao ra, nhung co the cat mat noi dung o canh anh. No khong xoa cac domain cues khac nhu camera, anh sang, mau sac hay boi canh. Vi vay so sanh square voi letterbox can dung validation dai dien, khong chon policy dua tren test cu.
 
@@ -301,7 +311,7 @@ TESTER_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Tester")
 3. Chay lai pipeline:
 
 ```bash
-python -m src.data_loader
+python -m src.data.data_loader
 ```
 
 `local_config.py` da nam trong `.gitignore`, nen moi thanh vien co the dat duong dan rieng ma khong lam thay doi code cua nhom.
@@ -319,7 +329,7 @@ FOREST_FIRE_DATA_DIR
 De validation co mot so anh `smokefire` wide, co the tao manifest rieng tu pool train/val cu. Anh trong split test duoc giu nguyen va khong tham gia qua trinh tao validation:
 
 ```powershell
-python -m src.create_aspect_split --output data/split_aspect.csv
+python -m src.data.create_aspect_split --output data/split_aspect.csv
 ```
 
 Voi du lieu hien tai, validation moi co 4 anh `smokefire` wide va train con 8 anh. So luong nay chi cho phep kiem tra pipeline, chua du de uoc luong hieu nang wide mot cach on dinh; can thu thap them anh wide co nhan tu nguon khac, khong lay tu Kaggle test.
@@ -327,7 +337,7 @@ Voi du lieu hien tai, validation moi co 4 anh `smokefire` wide va train con 8 an
 Chay frozen Xception tren split phat trien moi, square-crop ca train/validation, va lay mau co trong so theo cap (class, aspect group):
 
 ```powershell
-python -m src.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32 --cpu-threads 4
+python -m src.training.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32 --cpu-threads 4
 ```
 
 Square crop bo vien den va dua moi input ve cung hinh hoc vuong; validation dung center crop, train dung random square crop. Crop co the bo mat thong tin gan canh anh va khong xoa moi tuong quan noi dung voi camera/domain. Ket qua va checkpoint moi duoc ghi rieng trong `results/transfer_frozen/` va `models/transfer_frozen/`. Luong nay chi trich xuat feature train/validation; khong nap anh/features test hoac danh gia test. Chon preprocessing/model bang validation, sau khi khoa quyet dinh moi danh gia test mot lan.
