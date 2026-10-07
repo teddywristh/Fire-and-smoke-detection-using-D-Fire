@@ -135,7 +135,7 @@ The CNN learns spatial features such as flame patterns, smoke textures, colors, 
 
 ### 3. Transfer Learning – Frozen Backbone
 
-A pretrained CNN such as **EfficientNetB0** or **MobileNetV2** is used as a feature extractor.
+A pretrained CNN is used as a feature extractor with a newly initialized classification head. The current implementation (PyTorch, `src/training/`) supports **ResNet-50**, **EfficientNet-B0**, **MobileNetV3-Large**, and **Xception**.
 
 ```text
 Input
@@ -182,6 +182,12 @@ To ensure a fair comparison:
 - Test data is used only for final evaluation.
 - A fixed random seed is used where possible.
 - The same evaluation metrics are used for all models.
+
+Exception: several historical frozen-transfer configurations were compared on
+the original test set, so those test scores are exploratory rather than
+independent estimates. The aspect-aware Xception experiment uses a separate
+development split (`data/split_aspect.csv`) that repartitions only train and
+validation; test membership is unchanged. See `docs/frozen_features.md`.
 
 Model-specific preprocessing may be applied when required by pretrained architectures.
 
@@ -261,16 +267,29 @@ forest_fire_classification/
 │
 ├── src/
 │   ├── data_loader.py        # shared: builds split.csv and processed images
+│   ├── preprocessing.py      # shared: image checks and direct resize
 │   ├── datasets.py           # shared: split.csv -> tf.data for every model
 │   ├── augmentation.py       # shared: train-only augmentation policy
-│   ├── models/               # one file per model, owned by one person
+│   ├── models/               # one Keras file per model, owned by one person
 │   │   ├── basic_nn.py
 │   │   ├── custom_cnn.py
-│   │   ├── transfer_frozen.py
-│   │   └── transfer_finetuned.py
-│   ├── evaluation.py
-│   ├── visualization.py
-│   └── gradcam.py
+│   │   └── custom_cnn_new.py
+│   ├── data/                 # Kaggle download, aspect-aware split; data_loader/preprocessing re-export the shared ones
+│   │   ├── download_dataset.py
+│   │   ├── create_aspect_split.py
+│   │   ├── data_loader.py
+│   │   └── preprocessing.py
+│   ├── training/             # PyTorch transfer learning (frozen, fine-tuned, variants)
+│   │   ├── frozen_transfer.py
+│   │   ├── fine_tune_transfer.py
+│   │   ├── xception_aspect_frozen.py
+│   │   ├── frozen_multilabel.py
+│   │   └── calibrate_frozen.py
+│   └── analysis/             # evaluation and plots for transfer runs; gradcam.py is a TODO
+│       ├── evaluation.py
+│       ├── visualization.py
+│       ├── augmentation.py
+│       └── gradcam.py
 │
 ├── models/
 │   ├── basic_nn_best.keras
@@ -303,6 +322,8 @@ Main libraries used in the project:
 
 - Python
 - TensorFlow / Keras
+- PyTorch, torchvision, timm (transfer learning in `src/training/`)
+- KaggleHub (optional dataset download)
 - NumPy
 - Pandas
 - Matplotlib
@@ -387,6 +408,10 @@ data/processed/processing_summary.json
 
 The pipeline preserves the original train/validation/test split, resizes images to `224x224`, excludes `Forest Fire_Tester` from training/evaluation, and checks for duplicate files by SHA256.
 
+If the raw dataset is not on disk yet, `python -m src.data.download_dataset`
+downloads it with KaggleHub into `data/raw/kagglehub/` and then runs the same
+pipeline. `python -m src.data.data_loader` is an alias of `python -m src.data_loader`.
+
 For full data-processing details, see:
 
 ```text
@@ -406,11 +431,44 @@ contract is described in `src/models/__init__.py`.
 |---|---|---|
 | Basic Neural Network | `python -m src.models.basic_nn` | v1 results recorded; re-run needed on the shared pipeline |
 | Custom Complex CNN | `python -m src.models.custom_cnn` | v1 results recorded (`notebooks/02_custom_cnn.ipynb`); re-run needed on the shared pipeline |
-| Transfer Learning – Frozen | `python -m src.models.transfer_frozen` | Planned |
-| Transfer Learning – Fine-tuned | `python -m src.models.transfer_finetuned` | Planned |
+| Transfer Learning – Frozen | `python -m src.training.frozen_transfer` | PyTorch implementation; not on the shared pipeline yet (see below) |
+| Transfer Learning – Fine-tuned | `python -m src.training.fine_tune_transfer` | PyTorch implementation; not on the shared pipeline yet (see below) |
 
 Add `--evaluate-only` to evaluate a saved checkpoint without training. The
 Fine-tuning experiment should start from the best Frozen Transfer Learning model.
+
+#### Transfer learning (PyTorch)
+
+The transfer-learning scripts in `src/training/` read `data/split.csv` and the
+processed images, but they do not use `src/datasets.py` or
+`src/augmentation.py`: they use PyTorch, ImageNet normalization and their own
+train-time augmentation. Their results are therefore not directly comparable
+with the Keras models above. Checkpoints go to `models/transfer_frozen/`;
+reports go to `results/transfer_frozen/` and `results/transfer_finetuned/`.
+
+```bash
+# Frozen backbone, linear head; checkpoint chosen by validation loss
+python -m src.training.frozen_transfer --architecture resnet50 --epochs 20 --batch-size 32
+# Other backbones: efficientnet_b0, mobilenet_v3_large, xception (299x299, needs timm)
+
+# Fine-tune ResNet-50 layer4 + head from the best frozen checkpoint
+python -m src.training.fine_tune_transfer --epochs 8 --batch-size 32
+
+# Variants: two-output fire/smoke head, and validation-based logit calibration
+python -m src.training.frozen_multilabel --epochs 20 --batch-size 32
+python -m src.training.calibrate_frozen
+
+# Aspect-aware frozen Xception: square crop, class/aspect-balanced sampling,
+# separate train/val split, no test evaluation
+python -m src.data.create_aspect_split --output data/split_aspect.csv
+python -m src.training.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32
+```
+
+ImageNet weights are downloaded on the first run; add `--no-pretrained` to work
+offline. The Xception aspect experiment reads raw images from `DATASET_ROOT`
+and caches backbone features in `data/cache/`. Protocols, the experiment history
+and the reported metrics are in `docs/frozen_features.md`; per-pipeline
+preprocessing is in `docs/data_preprocessing_ff.md`.
 
 To add a model, create `src/models/<name>.py` that builds the model on
 `src.datasets.INPUT_SHAPE`, trains with `src.datasets.load_datasets()` (or

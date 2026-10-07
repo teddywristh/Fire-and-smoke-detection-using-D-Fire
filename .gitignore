@@ -14,3 +14,6 @@ models/*
 # Keep raw datasets out of Git if they are stored inside the project.
 data/raw/*
 !data/raw/.gitkeep
+
+# Cached backbone features for transfer learning.
+data/cache/
