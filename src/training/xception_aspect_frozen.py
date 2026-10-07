@@ -373,20 +373,46 @@ def main():
         "--image-size",
         type=int,
         choices=[64, 224, 256, 299, 320, 384],
-        default=299,
-        help="Kích thước letterbox vuông; mặc định pretrained là 299.",
+        default=224,
+        help="Kích thước ảnh vuông; mặc định của protocol hiện tại là 224.",
     )
     parser.add_argument("--patience", type=int, default=6)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--cpu-threads", type=int, default=4)
     parser.add_argument("--seed", type=int, default=config.RANDOM_SEED)
-    parser.add_argument("--split-csv", type=Path, default=config.SPLIT_CSV_PATH)
+    parser.add_argument(
+        "--split-csv",
+        type=Path,
+        default=config.DATA_DIR / "split_aspect.csv",
+        help="Manifest phát triển; mặc định là data/split_aspect.csv.",
+    )
     parser.add_argument(
         "--crop-mode",
         choices=["letterbox", "square"],
-        default="letterbox",
+        default="square",
     )
-    parser.add_argument("--aspect-balance", action="store_true")
+    balance_group = parser.add_mutually_exclusive_group()
+    balance_group.add_argument(
+        "--aspect-balance",
+        dest="aspect_balance",
+        action="store_true",
+        help="Bật sampling cân bằng theo (class, aspect group).",
+    )
+    balance_group.add_argument(
+        "--no-aspect-balance",
+        dest="aspect_balance",
+        action="store_false",
+        help="Tắt sampling cân bằng theo aspect.",
+    )
+    parser.set_defaults(aspect_balance=True)
+    parser.add_argument(
+        "--experiment-reason",
+        default=(
+            "Protocol cố định: Xception frozen, square crop 224x224, "
+            "aspect-balanced sampling; chỉ chọn cấu hình bằng validation macro F1."
+        ),
+        help="Lý do/ghi chú được lưu cùng artifact thí nghiệm.",
+    )
     args = parser.parse_args()
 
     if args.cpu_threads < 1 or args.batch_size < 2:
@@ -418,6 +444,26 @@ def main():
 
     output_dir = PROJECT_ROOT / "results/transfer_frozen" / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
+    experiment_config = {
+        "protocol": "xception_frozen_square_224_aspect_balanced",
+        "architecture": "legacy_xception",
+        "manifest": str(args.split_csv),
+        "image_size": args.image_size,
+        "crop_mode": args.crop_mode,
+        "aspect_balanced_sampling": args.aspect_balance,
+        "selection_metric": "validation_macro_f1",
+        "test_evaluation": "disabled",
+        "test_images_loaded": False,
+        "test_predictions_saved": False,
+        "test_metrics_reported": False,
+        "experiment_reason": args.experiment_reason,
+        "configuration_log": (
+            "Chỉ so sánh validation macro F1 và confusion matrix validation; "
+            "không dùng test để chọn cấu hình."
+        ),
+    }
+    with (output_dir / "experiment_config.json").open("w", encoding="utf-8") as file:
+        json.dump(experiment_config, file, indent=2, ensure_ascii=False)
     manifest = pd.read_csv(args.split_csv)
     required = {
         "filepath",
@@ -776,6 +822,10 @@ def main():
         "split_manifest": str(args.split_csv),
         "crop_mode": args.crop_mode,
         "aspect_balanced_sampling": args.aspect_balance,
+        "selection_metric": "validation_macro_f1",
+        "test_evaluation": "disabled",
+        "test_images_loaded": False,
+        "test_predictions_saved": False,
         "validation_aspect_groups": val_groups,
     }
     with (output_dir / "summary.json").open("w", encoding="utf-8") as file:
