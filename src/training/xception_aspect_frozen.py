@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Transfer learning với Xception đóng băng, đầu vào được letterbox để giữ nguyên aspect.
-Ảnh thô được letterbox về kích thước đầu vào của Xception pretrained.
-Đặc trưng frozen được cache trên disk theo từng split, sau đó huấn luyện
-một classifier nhỏ. Không sử dụng hay sửa đổi preprocessing và checkpoint
-của ResNet.
+Frozen-backbone transfer learning for Xception and ResNet-50.
+Supports square cropping or letterboxing, caches features by split, and trains
+one shared classifier head. Checkpoint selection uses validation metrics only;
+the test split is not loaded.
 """
 from __future__ import annotations
 import argparse
@@ -36,7 +35,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 import config
 
-CACHE_VERSION = "xception-crop-protocol-v2"
+CACHE_VERSION = "frozen-backbone-crop-protocol-v3"
 SQUARE_RANGE = (0.9, 1.1)
 WIDE_RANGE = (1.6, 1.95)
 
@@ -366,6 +365,12 @@ def save_confusion(matrix, path, title):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--architecture",
+        choices=["xception", "resnet50"],
+        default="xception",
+        help="Backbone frozen cần so sánh.",
+    )
     parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--learning-rate", type=float, default=5e-4)
@@ -408,10 +413,19 @@ def main():
     parser.add_argument(
         "--experiment-reason",
         default=(
-            "Protocol cố định: Xception frozen, square crop 224x224, "
+            "Protocol cố định: frozen backbone, square crop 224x224, "
             "aspect-balanced sampling; chỉ chọn cấu hình bằng validation macro F1."
         ),
         help="Lý do/ghi chú được lưu cùng artifact thí nghiệm.",
+    )
+    parser.add_argument(
+        "--run-name",
+        type=str,
+        default=None,
+        help=(
+            "Tên thư mục artifact riêng cho run. Dùng để lưu nhiều seed "
+            "mà không ghi đè kết quả của nhau."
+        ),
     )
     args = parser.parse_args()
 
@@ -431,22 +445,30 @@ def main():
         or args.split_csv.resolve() != config.SPLIT_CSV_PATH.resolve()
     )
 
+    backbone_tag = args.architecture
     if new_protocol and args.aspect_balance:
-        run_name = "xception_{}_aspect_balanced_{}".format(
-            args.crop_mode, args.image_size
+        run_name = "{}_{}_aspect_balanced_{}".format(
+            backbone_tag, args.crop_mode, args.image_size
         )
     elif new_protocol:
-        run_name = "xception_{}_{}".format(args.crop_mode, args.image_size)
-    elif args.image_size == 299:
+        run_name = "{}_{}_{}".format(
+            backbone_tag, args.crop_mode, args.image_size
+        )
+    elif args.image_size == 299 and args.architecture == "xception":
         run_name = "xception_aspect_robust"
     else:
-        run_name = "xception_aspect_robust_{}".format(args.image_size)
+        run_name = "{}_aspect_robust_{}".format(
+            backbone_tag, args.image_size
+        )
+
+    if args.run_name:
+        run_name = args.run_name
 
     output_dir = PROJECT_ROOT / "results/transfer_frozen" / run_name
     output_dir.mkdir(parents=True, exist_ok=True)
     experiment_config = {
-        "protocol": "xception_frozen_square_224_aspect_balanced",
-        "architecture": "legacy_xception",
+        "protocol": "frozen_backbone_square_224_aspect_balanced",
+        "architecture": args.architecture,
         "manifest": str(args.split_csv),
         "image_size": args.image_size,
         "crop_mode": args.crop_mode,
@@ -457,6 +479,11 @@ def main():
         "test_predictions_saved": False,
         "test_metrics_reported": False,
         "experiment_reason": args.experiment_reason,
+        "model_name": (
+            "legacy_xception"
+            if args.architecture == "xception"
+            else "resnet50"
+        ),
         "configuration_log": (
             "Chỉ so sánh validation macro F1 và confusion matrix validation; "
             "không dùng test để chọn cấu hình."
@@ -519,9 +546,8 @@ def main():
                 ),
                 flush=True,
             )
-    model = timm.create_model(
-        "legacy_xception", pretrained=True, num_classes=0
-    )
+    model_name = "legacy_xception" if args.architecture == "xception" else "resnet50"
+    model = timm.create_model(model_name, pretrained=True, num_classes=0)
     for parameter in model.parameters():
         parameter.requires_grad = False
     model.eval()
@@ -698,7 +724,7 @@ def main():
             stale = 0
             torch.save(
                 {
-                    "architecture": "legacy_xception",
+                    "architecture": args.architecture,
                     "class_names": config.CLASS_NAMES,
                     "backbone_state_dict": model.state_dict(),
                     "head_state_dict": head.state_dict(),
@@ -762,7 +788,7 @@ def main():
     save_confusion(
         val_matrix,
         output_dir / "validation_confusion_matrix.png",
-        "Xception Validation",
+        "{} Validation".format(args.architecture),
     )
     val_ratios = cached["val"]["ratios"]
     val_group_names = np.asarray(
@@ -808,7 +834,7 @@ def main():
     ) as file:
         json.dump(val_groups, file, indent=2)
     summary = {
-        "architecture": "legacy_xception",
+        "architecture": args.architecture,
         "input_size": [input_size, input_size],
         "normalization_mean": model.pretrained_cfg["mean"],
         "normalization_std": model.pretrained_cfg["std"],

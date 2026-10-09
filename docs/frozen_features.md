@@ -128,6 +128,33 @@ A new experiment uses Xception frozen at 224×224:
 
 Do not directly compare these validation scores with the test scores of older runs: the split, preprocessing, and sampler have all changed. Four wide `smokefire` validation images are far too few to infer robustness on wide-angle cameras. It is necessary to acquire additional wide-angle images with labels from a source independent of the Kaggle test set.
 
+### Controlled ResNet-50 vs Xception comparison
+
+ResNet-50 and Xception were run through the shared implementation in `src/training/xception_aspect_frozen.py`:
+
+* `data/split_aspect.csv`, train/validation only.
+* Square crop at 224x224, with aspect-balanced sampling.
+* Frozen ImageNet-pretrained backbone and the same classifier head.
+* AdamW training, validation macro-F1 checkpoint selection, and early stopping.
+* Independent seeds `42`, `7`, `123`, and `2024` for each backbone.
+
+The script accepts `--architecture resnet50` or `--architecture xception`. Example command for one seed:
+
+```powershell
+python -m src.training.xception_aspect_frozen --architecture resnet50 --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --seed 42 --run-name resnet50_square_aspect_balanced_224_seed_42
+```
+
+Change the architecture, seed, and run name to reproduce each saved run. The notebook reads the existing CSV results and does not rerun training by default.
+
+The controlled comparison is reported in `results/frozen_backbone_comparison_mean_variance.csv` and `results/frozen_backbone_comparison_per_seed.csv`. Validation means and population variances are:
+
+| Backbone | Accuracy mean | Accuracy variance | Macro F1 mean | Macro F1 variance |
+| --- | ---: | ---: | ---: | ---: |
+| Xception | 88.94% | 0.000102 | 88.96% | 0.000095 |
+| ResNet-50 | 93.34% | 0.000015 | 93.34% | 0.000015 |
+
+Under this locked validation protocol, ResNet-50 is the stronger backbone and also shows lower across-seed variance. This is a validation-only result, not an independent test-set claim. The notebook `notebooks/frozen_transfer_learning_pipeline.ipynb` contains the per-seed table, mean/variance summaries, and performance plots. The comparison should be rerun if the split, preprocessing, head, optimizer, or checkpoint rule changes.
+
 ## 4. Why Letterbox Hasn't Eliminated the Aspect Shortcut
 
 Letterboxing preserves object geometry but fills empty spaces on the sides or top/bottom with black borders. The size and position of these black regions directly depend on the source aspect ratio. Consequently, even without image stretching, the model can infer whether the original image was square or wide based on the padding pattern. If that aspect ratio correlates with a class or camera source, the padding essentially becomes a shortcut signal.
