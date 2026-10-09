@@ -1,516 +1,180 @@
-# Comparative Deep Learning Models for Forest Fire and Smoke Image Classification
+# Forest fire and smoke classification (Forest Fire C4)
 
-## Project Overview
+Four-class image classification: `fire`, `nofire`, `smoke`, `smokefire` (4,800 images, 1,200 per class).
+This branch reruns every model from the `basic-nn`, `custom-complex-cnn` and `transfer-learning` branches on
+**one shared data pipeline**, and adds a fine-tuning step built on the motif of `transfer_learning_all.py`
+(frozen ImageNet backbone, then a `GlobalAveragePooling -> Dense(256) -> Dropout(0.5)` head). One framework
+(Keras 3 / TensorFlow), one split, one notebook per task.
 
-This project develops and compares Deep Learning models for forest fire and smoke image classification.
-
-The system classifies images into four categories:
-
-- **Fire:** Fire is visible, with no clear smoke.
-- **No Fire:** Neither fire nor smoke is visible.
-- **Smoke:** Smoke is visible, but no fire can be seen.
-- **SmokeFire:** Both smoke and fire are visible.
-
-The project investigates three main Deep Learning approaches:
-
-1. **Basic Neural Network**
-2. **Custom Complex CNN**
-3. **Transfer Learning**
-   - Frozen pretrained backbone
-   - Fine-tuned pretrained backbone
-
-Although there are three main approaches, four model configurations are evaluated:
-
-| Model | Description |
-|---|---|
-| Basic Neural Network | Fully connected baseline model |
-| Custom Complex CNN | CNN designed and trained from scratch |
-| Transfer Learning – Frozen | Pretrained backbone with only the classification head trained |
-| Transfer Learning – Fine-tuned | Pretrained model with selected backbone layers fine-tuned |
-
-All models use the same dataset split and evaluation criteria to ensure a fair comparison.
-
----
-
-## Objectives
-
-The main objectives of this project are:
-
-- Build a baseline model using a Basic Neural Network.
-- Develop a custom CNN for image classification.
-- Apply Transfer Learning using a pretrained CNN.
-- Evaluate the effect of fine-tuning.
-- Compare the performance of different model architectures.
-- Analyze common classification errors.
-- Use Grad-CAM to understand which image regions influence the final model's predictions.
-
-Special attention is given to confusion between:
-
-- `Fire` and `SmokeFire`
-- `Smoke` and `SmokeFire`
-- `Fire` predicted as `No Fire`
-- `SmokeFire` predicted as `No Fire`
-
----
-
-## Dataset
-
-The project uses the **Forest Fire Image Classification Dataset** from Kaggle.
-
-Dataset link:
-
-https://www.kaggle.com/datasets/obulisainaren/forest-fire-c4
-
-The dataset contains four classes:
-
-| Class | Description |
-|---|---|
-| Fire | Images containing visible fire |
-| No Fire | Images without fire or smoke |
-| Smoke | Images containing smoke without visible fire |
-| SmokeFire | Images containing both smoke and fire |
-
-The dataset already provides training, validation, and test sets.
-
-The original split is preserved so that all models are trained and evaluated using the same data.
-
-A shared `split.csv` is used to keep the data split consistent across experiments.
-
----
-
-## Models
-
-### 1. Basic Neural Network
-
-The Basic Neural Network is used as a baseline model.
-
-Example architecture:
+## Layout
 
 ```text
-Input
-→ Flatten
-→ Dense
-→ Dropout
-→ Dense
-→ Softmax
+config.py                          dataset path, class names, image size, seed
+src/data.py                        the shared data pipeline; `python -m src.data` rebuilds the split
+src/experiment.py                  training, evaluation, plots, leaderboard, ImageNet backbones
+src/compare.py                     bootstrap intervals for every run (results/comparison.csv)
+notebooks/01_basic_nn.ipynb        task 1: basic neural network
+notebooks/02_custom_cnn.ipynb      task 2: custom residual + squeeze-and-excitation CNN
+notebooks/03_frozen_backbone.ipynb task 3: frozen Xception and ResNet-50
+notebooks/04_finetune_backbone.ipynb task 4: fine-tuned Xception and ResNet-50 (plan + runs)
+data/split_aspect.csv              the split every task uses
+results/<run>/                     metrics.json, history.csv, val/test predictions, summary.png
+results/leaderboard.csv            one row per run
+results/comparison.csv             macro F1 with 95% intervals, and difference from frozen ResNet-50
 ```
 
-This model provides a simple reference point for evaluating more advanced CNN-based approaches.
-
----
-
-### 2. Custom Complex CNN
-
-The Custom CNN is designed and trained from scratch.
-
-Main components include:
-
-- Conv2D
-- Batch Normalization
-- Max Pooling
-- Dropout
-- Global Average Pooling
-- Dense layers
-
-Example architecture:
-
-```text
-Input
-→ Conv2D
-→ BatchNormalization
-→ MaxPooling
-→ Dropout
-→ Conv2D
-→ BatchNormalization
-→ MaxPooling
-→ Dropout
-→ GlobalAveragePooling
-→ Dense
-→ Softmax
-```
-
-The CNN learns spatial features such as flame patterns, smoke textures, colors, edges, and shapes.
-
----
-
-### 3. Transfer Learning – Frozen Backbone
-
-A pretrained CNN is used as a feature extractor with a newly initialized classification head. The current implementation (PyTorch, `src/training/`) supports **ResNet-50**, **EfficientNet-B0**, **MobileNetV3-Large**, and **Xception**.
-
-```text
-Input
-→ Pretrained Backbone
-→ GlobalAveragePooling
-→ Classification Head
-→ Dropout
-→ Softmax
-```
-
-During this stage:
-
-- The pretrained backbone is frozen.
-- Only the classification head is trained.
-
-The same pretrained backbone is used for both the Frozen and Fine-tuning experiments.
-
----
-
-### 4. Transfer Learning – Fine-tuning
-
-Fine-tuning continues from the best Frozen Transfer Learning model.
-
-Selected final layers of the pretrained backbone are unfrozen and trained using a smaller learning rate.
-
-```text
-Best Frozen Model
-→ Unfreeze Selected Layers
-→ Fine-tuning
-→ Final Model
-```
-
-This experiment evaluates whether adapting pretrained features to the forest fire dataset improves classification performance.
-
----
-
-## Training Protocol
-
-To ensure a fair comparison:
-
-- All models use the same train, validation, and test split.
-- Data augmentation is applied only to training data.
-- Validation data is used for model selection and Early Stopping.
-- Test data is used only for final evaluation.
-- A fixed random seed is used where possible.
-- The same evaluation metrics are used for all models.
-
-Exception: several historical frozen-transfer configurations were compared on
-the original test set, so those test scores are exploratory rather than
-independent estimates. The aspect-aware Xception experiment uses a separate
-development split (`data/split_aspect.csv`) that repartitions only train and
-validation; test membership is unchanged. See `docs/frozen_features.md`.
-
-Model-specific preprocessing may be applied when required by pretrained architectures.
-
----
-
-## Evaluation Metrics
-
-Each model is evaluated using:
-
-- Accuracy
-- Precision
-- Recall
-- F1-score
-- Confusion Matrix
-- Training Accuracy
-- Validation Accuracy
-- Training Loss
-- Validation Loss
-
-Per-class performance is also analyzed for all four classes.
-
-Special attention is given to critical false-negative cases:
-
-```text
-Fire → No Fire
-SmokeFire → No Fire
-```
-
----
-
-## Error Analysis
-
-Misclassified images are analyzed to identify common failure patterns.
-
-Important confusion cases include:
-
-```text
-Fire ↔ SmokeFire
-Smoke ↔ SmokeFire
-Fire → No Fire
-SmokeFire → No Fire
-```
-
-For selected incorrect predictions, the project examines:
-
-- Original image
-- True label
-- Predicted label
-- Prediction confidence
-
----
-
-## Grad-CAM
-
-Grad-CAM is applied to the final fine-tuned Transfer Learning model.
-
-It is used to visualize which parts of an image contribute most strongly to the model's prediction.
-
-This helps determine whether the model focuses on meaningful regions such as fire and smoke or on irrelevant background features.
-
----
-
-## Project Structure
-
-```text
-forest_fire_classification/
-│
-├── data/
-│   ├── raw/
-│   └── split.csv
-│
-├── notebooks/
-│   ├── 01_basic_nn.ipynb
-│   ├── 02_custom_cnn.ipynb
-│   ├── 03_transfer_frozen.ipynb
-│   └── 04_transfer_finetuning.ipynb
-│
-├── src/
-│   ├── data_loader.py        # shared: builds split.csv and processed images
-│   ├── preprocessing.py      # shared: image checks and direct resize
-│   ├── datasets.py           # shared: split.csv -> tf.data for every model
-│   ├── augmentation.py       # shared: train-only augmentation policy
-│   ├── models/               # one Keras file per model, owned by one person
-│   │   ├── basic_nn.py
-│   │   ├── custom_cnn.py
-│   │   └── custom_cnn_new.py
-│   ├── data/                 # Kaggle download, aspect-aware split; data_loader/preprocessing re-export the shared ones
-│   │   ├── download_dataset.py
-│   │   ├── create_aspect_split.py
-│   │   ├── data_loader.py
-│   │   └── preprocessing.py
-│   ├── training/             # PyTorch transfer learning (frozen, fine-tuned, variants)
-│   │   ├── frozen_transfer.py
-│   │   ├── fine_tune_transfer.py
-│   │   ├── xception_aspect_frozen.py
-│   │   ├── frozen_multilabel.py
-│   │   └── calibrate_frozen.py
-│   └── analysis/             # evaluation and plots for transfer runs; gradcam.py is a TODO
-│       ├── evaluation.py
-│       ├── visualization.py
-│       ├── augmentation.py
-│       └── gradcam.py
-│
-├── models/
-│   ├── basic_nn_best.keras
-│   ├── custom_cnn_best.keras
-│   ├── transfer_frozen_best.keras
-│   └── transfer_finetuned_best.keras
-│
-├── results/
-│   ├── basic_nn/
-│   ├── custom_cnn/
-│   ├── transfer_frozen/
-│   ├── transfer_finetuned/
-│   └── final_comparison.csv
-│
-├── demo/
-│   └── predict_image.ipynb
-│
-├── config.py
-├── requirements.txt
-├── .gitignore
-├── README.md
-└── main.ipynb
-```
-
----
-
-## Requirements
-
-Main libraries used in the project:
-
-- Python
-- TensorFlow / Keras
-- PyTorch, torchvision, timm (transfer learning in `src/training/`)
-- KaggleHub (optional dataset download)
-- NumPy
-- Pandas
-- Matplotlib
-- Scikit-learn
-- Pillow
-- Jupyter
-
-Install dependencies using:
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## How to Run
-
-### 1. Clone the repository
-
-```bash
-git clone <repository-url>
-cd forest_fire_classification
-```
-
-### 2. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Download and configure the dataset
-
-Download the Kaggle dataset and keep the folder that directly contains:
-
-```text
-train/
-val/
-test/
-```
-
-By default, this project expects the dataset at:
-
-```text
-../dataset/Forect Fire/Forest Fire_Dataset
-```
-
-If your dataset is stored somewhere else, do not edit `config.py` directly. Copy the local config template:
-
-```bash
-copy local_config.example.py local_config.py
-```
-
-Then edit `local_config.py` for your own machine:
-
-```python
-from pathlib import Path
-
-DATASET_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Dataset")
-TESTER_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Tester")
-```
-
-`local_config.py` is ignored by Git, so each team member can use a different dataset location without changing tracked project files.
-
-### 4. Prepare the processed dataset
-
-Run the data preparation pipeline:
-
-```bash
-python -m src.data_loader
-```
-
-This creates:
-
-```text
-data/split.csv
-data/processed/train/
-data/processed/val/
-data/processed/test/
-data/processed/processing_report.md
-data/processed/processing_summary.json
-```
-
-The pipeline preserves the original train/validation/test split, resizes images to `224x224`, excludes `Forest Fire_Tester` from training/evaluation, and checks for duplicate files by SHA256.
-
-If the raw dataset is not on disk yet, `python -m src.data.download_dataset`
-downloads it with KaggleHub into `data/raw/kagglehub/` and then runs the same
-pipeline. `python -m src.data.data_loader` is an alias of `python -m src.data_loader`.
-
-For full data-processing details, see:
-
-```text
-DATA_PROCESSING.md
-```
-
-### 5. Run the experiments
-
-All models share one data pipeline (`src/datasets.py`): the same split, the
-same 224×224 input with pixel values in [0, 255], one-hot labels, and the same
-train-only augmentation (`src/augmentation.py`). Each model lives in its own
-file under `src/models/`, which holds its architecture, training settings and
-evaluation, and does its own resizing and scaling as its first layers. The
-contract is described in `src/models/__init__.py`.
-
-| Model | Run | Status |
+Checkpoints are written to `models/<run>.weights.h5` (not tracked).
+
+## Setup
+
+1. Download the dataset (Kaggle `obulisainaren/forest-fire-c4`). By default the code expects it next to the
+   repository, at `../dataset/Forect Fire/Forest Fire_Dataset` (the folder that holds `train/`, `val/`,
+   `test/`). Otherwise copy `local_config.example.py` to `local_config.py` and set `DATASET_ROOT`, or set the
+   `FOREST_FIRE_DATASET_ROOT` environment variable.
+2. `pip install -r requirements.txt` (tested with TensorFlow 2.21, Keras 3.15, Python 3.11, RTX 3050 6 GB).
+3. Run the notebooks in order. Each one appends its runs to `results/leaderboard.csv`. Headless:
+
+   ```bash
+   jupyter nbconvert --to notebook --execute --inplace notebooks/0*.ipynb
+   ```
+
+`data/split_aspect.csv` is committed; `python -m src.data` rebuilds it from the raw images and gives the
+same file.
+
+## The shared data pipeline
+
+The raw images do not share one shape, and the shape follows the class, differently in each split. Aspect
+group = width/height in 0.9-1.1 (`square`), 1.6-1.95 (`wide`), anything else (`other`):
+
+| Class | train square / wide / other | val square / wide / other | test square / wide / other |
+|---|---|---|---|
+| fire | 800 / 0 / 0 | 200 / 0 / 0 | 200 / 0 / 0 |
+| nofire | 781 / 10 / 9 | 196 / 2 / 2 | 200 / 0 / 0 |
+| smoke | 31 / 241 / 528 | 8 / 60 / 132 | 0 / 103 / 97 |
+| smokefire | 770 / 8 / 22 | 190 / 4 / 6 | **0 / 99 / 101** |
+
+Training `smokefire` is almost all square, test `smokefire` is never square. Stretching the images to a
+square (the old `direct_resize`) or padding them (letterbox) both leave the shape visible to the model,
+which can then learn "non-square means smoke". The pipeline of the transfer-learning branch removes that
+shortcut, and every task now uses it (`src/data.py`):
+
+1. **Split** `data/split_aspect.csv`: the Kaggle test split is kept untouched. The Kaggle train+val pool is
+   re-split 800/200 per class, stratified by aspect group, so validation holds a few wide `smokefire`
+   images (4) instead of 1.
+2. **Square crop from the raw image**, then bilinear resize to 224x224: a random crop on train (side 72-100%
+   of the short side, random position), the center crop on val/test. No stretching, no padding.
+3. **Train-only augmentation**: small affine (rotate +-5 deg, translate +-4%, scale 0.94-1.06, shear +-2
+   deg), horizontal flip, brightness and contrast x0.88-1.12.
+4. **Aspect-balanced sampling**: every epoch draws 3,200 training images with replacement, with probability
+   proportional to 1/sqrt(size of the image's (class, aspect group)), so the 8 wide training `smokefire`
+   images are not drowned by the 770 square ones.
+
+Batches are float32 pixels in [0, 255] with one-hot labels; each model rescales them itself ([0, 1] for the
+custom networks, [-1, 1] for Xception, caffe BGR mean subtraction for ResNet-50). Every run picks its best
+epoch on validation; test is predicted once, after training.
+
+## The four tasks
+
+Each notebook keeps the model and training recipe of the branch it comes from; only the data changed.
+
+| Notebook | Source | Model and training (kept) |
 |---|---|---|
-| Basic Neural Network | `python -m src.models.basic_nn` | v1 results recorded; re-run needed on the shared pipeline |
-| Custom Complex CNN | `python -m src.models.custom_cnn` | v1 results recorded (`notebooks/02_custom_cnn.ipynb`); re-run needed on the shared pipeline |
-| Transfer Learning – Frozen | `python -m src.training.frozen_transfer` | PyTorch implementation; not on the shared pipeline yet (see below) |
-| Transfer Learning – Fine-tuned | `python -m src.training.fine_tune_transfer` | PyTorch implementation; not on the shared pipeline yet (see below) |
+| `01_basic_nn` | `basic-nn`, `src/basic_nn.py` | resize to 64x64, Flatten, Dense(256), Dropout(0.5), Dense(4); Adam 5e-4; 30 epochs; ReduceLROnPlateau; early stopping; best val loss |
+| `02_custom_cnn` | `custom-complex-cnn`, `02_custom_cnn.ipynb` | stride-2 stem, 5 residual squeeze-and-excitation blocks, GAP, Dense(128); label smoothing 0.05; Adam 1e-3; 50 epochs; best val loss |
+| `03_frozen_backbone` | `transfer-learning`, `xception_aspect_frozen.py` protocol | frozen ImageNet Xception / ResNet-50, head Dropout(0.45), Dense(512), BatchNorm, Dropout(0.2), Dense(4); AdamW 5e-4; 30 epochs; best val macro F1 |
+| `04_finetune_backbone` | `transfer_learning_all.py` motif | stage 1 = the motif (frozen backbone, Dense(256), Dropout(0.5), Adam 1e-3, 10 epochs); stage 2 unfreezes the last stage (`top`) or every layer (`all`) at Adam 1e-5 for up to 20 epochs, BatchNorm frozen; best val macro F1 |
 
-Add `--evaluate-only` to evaluate a saved checkpoint without training. The
-Fine-tuning experiment should start from the best Frozen Transfer Learning model.
+The fine-tuning plan and its reasons are written at the top of `04_finetune_backbone.ipynb`.
 
-#### Transfer learning (PyTorch)
+Two changes come from moving everything to one framework. The `transfer-learning` branch ran PyTorch;
+here Xception is the Keras ImageNet checkpoint (the same weights timm's `legacy_xception` was converted
+from), and ResNet-50 is the Keras ImageNet checkpoint (the original caffe weights, about 75% ImageNet
+top-1) instead of torchvision's `DEFAULT` weights (about 81%). The frozen backbone also sees freshly
+augmented images every epoch instead of one cached augmented view. As a check, frozen Xception reaches
+89.9% validation macro F1 here against 89.84% for the PyTorch run on the same split.
 
-The transfer-learning scripts in `src/training/` read `data/split.csv` and the
-processed images, but they do not use `src/datasets.py` or
-`src/augmentation.py`: they use PyTorch, ImageNet normalization and their own
-train-time augmentation. Their results are therefore not directly comparable
-with the Keras models above. Checkpoints go to `models/transfer_frozen/`;
-reports go to `results/transfer_frozen/` and `results/transfer_finetuned/`.
+## Results
 
-```bash
-# Frozen backbone, linear head; checkpoint chosen by validation loss
-python -m src.training.frozen_transfer --architecture resnet50 --epochs 20 --batch-size 32
-# Other backbones: efficientnet_b0, mobilenet_v3_large, xception (299x299, needs timm)
+One run per configuration (seed 42) on an RTX 3050 6 GB. Run times: notebook 01 2 min, 02 43 min, 03 13 min,
+04 45 min. Intervals are 95% paired bootstrap intervals over the 800 val or 800 test images
+(`python -m src.compare`, written to `results/comparison.csv`). Full rows: `results/leaderboard.csv`.
 
-# Fine-tune ResNet-50 layer4 + head from the best frozen checkpoint
-python -m src.training.fine_tune_transfer --epochs 8 --batch-size 32
+| Run | Trainable params | Best / last epoch | Val acc | Val macro F1 | Val F1 vs frozen ResNet-50 | Test acc | Test macro F1 | Test F1 vs frozen ResNet-50 |
+|---|---:|---:|---:|---:|---|---:|---:|---|
+| 1 Basic NN | 3.15 M | 28 / 30 | 68.6 | 67.9 | -26.7 [-30.0, -23.6] | 60.5 | 60.9 | -17.5 [-21.2, -13.9] |
+| 2 Custom CNN | 2.74 M | 46 / 50 | 95.6 | 95.6 | +1.0 [-0.7, +2.8] | 76.2 | 76.5 | -1.9 [-4.4, +0.4] |
+| 3 Frozen Xception | 1.05 M | 15 / 21 | 89.9 | 89.9 | -4.7 [-6.9, -2.6] | 73.9 | 74.6 | -3.8 [-6.2, -1.4] |
+| 3 Frozen ResNet-50 | 1.05 M | 11 / 17 | 94.6 | 94.6 | reference | 77.8 | 78.4 | reference |
+| 4 Xception, stage 1 (motif, frozen) | 0.53 M | 6 / 10 | 88.8 | 88.8 | -5.8 [-8.1, -3.6] | 71.4 | 72.0 | -6.4 [-9.0, -3.9] |
+| 4 Xception, stage 2 `top` | 7.30 M | 19 / 20 | 93.8 | 93.8 | -0.9 [-2.7, +1.0] | 75.9 | 76.6 | -1.8 [-3.8, +0.2] |
+| 4 Xception, stage 2 `all` | 21.28 M | 19 / 20 | 96.9 | 96.9 | +2.3 [+0.6, +4.0] | 77.6 | 78.3 | -0.1 [-2.2, +2.0] |
+| 4 ResNet-50, stage 1 (motif, frozen) | 0.53 M | 8 / 10 | 94.6 | 94.6 | 0.0 [-1.5, +1.4] | 78.0 | 78.6 | +0.2 [-1.2, +1.6] |
+| 4 ResNet-50, stage 2 `top` | 15.48 M | 7 / 12 | 97.0 | 97.0 | +2.4 [+1.1, +3.8] | 77.5 | 78.1 | -0.3 [-2.1, +1.5] |
+| 4 ResNet-50, stage 2 `all` | 24.01 M | 5 / 10 | **97.5** | **97.5** | +2.9 [+1.5, +4.3] | 77.9 | **78.6** | +0.2 [-1.6, +2.0] |
 
-# Variants: two-output fire/smoke head, and validation-based logit calibration
-python -m src.training.frozen_multilabel --epochs 20 --batch-size 32
-python -m src.training.calibrate_frozen
+Test F1 per class:
 
-# Aspect-aware frozen Xception: square crop, class/aspect-balanced sampling,
-# separate train/val split, no test evaluation
-python -m src.data.create_aspect_split --output data/split_aspect.csv
-python -m src.training.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32
-```
-
-ImageNet weights are downloaded on the first run; add `--no-pretrained` to work
-offline. The Xception aspect experiment reads raw images from `DATASET_ROOT`
-and caches backbone features in `data/cache/`. Protocols, the experiment history
-and the reported metrics are in `docs/frozen_features.md`; per-pipeline
-preprocessing is in `docs/data_preprocessing_ff.md`.
-
-To add a model, create `src/models/<name>.py` that builds the model on
-`src.datasets.INPUT_SHAPE`, trains with `src.datasets.load_datasets()` (or
-`load_frames()` + `make_dataset()`), saves `models/<name>_best.keras` and writes
-its outputs to `results/<name>/`. Use `src/models/custom_cnn.py` as an example.
-
-Model checkpoints in `models/` are not tracked by Git. Background and next
-steps are in `docs/PIPELINE_PROPOSAL.md`.
-
-### 6. Compare the results
-
-Run:
-
-```text
-main.ipynb
-```
-
-to summarize and compare all model results.
-
----
-
-## Final Comparison
-
-The final results will be summarized using a table similar to:
-
-| Model | Accuracy | Precision | Recall | F1-score |
+| Run | fire | nofire | smoke | smokefire |
 |---|---:|---:|---:|---:|
-| Basic Neural Network | TBD | TBD | TBD | TBD |
-| Custom Complex CNN | TBD | TBD | TBD | TBD |
-| Transfer Learning – Frozen | TBD | TBD | TBD | TBD |
-| Transfer Learning – Fine-tuned | TBD | TBD | TBD | TBD |
+| 1 Basic NN | 71.2 | 66.1 | 59.8 | 46.4 |
+| 2 Custom CNN | 74.7 | 92.7 | 70.1 | 68.5 |
+| 3 Frozen Xception | 74.4 | 94.7 | 68.7 | 60.7 |
+| 3 Frozen ResNet-50 | 77.5 | 98.0 | 73.4 | 64.7 |
+| 4 Xception, stage 2 `all` | 76.2 | 99.2 | 71.5 | 66.1 |
+| 4 ResNet-50, stage 2 `all` | 78.2 | 99.2 | 72.1 | 64.8 |
 
-The final conclusion will be based on the actual experimental results.
+### What the numbers say
 
----
+- **Validation separates the models; test does not.** On validation, fine-tuning beats the frozen
+  ResNet-50 by 2.3-2.9 points (`all` for both backbones, `top` for ResNet-50; intervals above zero). On
+  test, the custom CNN, the frozen ResNet-50 and every stage-2 run land between 76.5 and 78.6 macro F1,
+  and none of them is distinguishable from the frozen ResNet-50. Only the basic NN and the two frozen
+  Xception runs are clearly worse.
+- **Fine-tuning helps Xception more than ResNet-50.** Xception goes from 88.8 (motif, frozen) to 96.9
+  validation F1 and from 72.0 to 78.3 test F1. ResNet-50's frozen features are already at 94.6 / 78.6, and
+  fine-tuning moves validation to 97.5 but leaves test flat. Unfreezing everything scores at least as well
+  as unfreezing the last stage and takes 1.5-1.8x the time per epoch.
+- **The custom CNN trained from scratch is as good as the frozen ImageNet backbones on validation** (95.6),
+  and reaches 76.5 on test, 1.9 points under the frozen ResNet-50 (the interval includes zero).
+- **The 19-20 point gap between validation and test is the same for every strong model**, so it comes from
+  the test split, not from the models. The errors that grow on test:
 
-## Notes
+  | Error (images) | val, strong models | test, strong models |
+  |---|---:|---:|
+  | `fire` predicted `smokefire` (of 200) | 9-35 | 64-82 |
+  | `smoke` predicted `smokefire` (of 200) | 0-7 | 57-81 |
+  | `smokefire` predicted `smoke` (of 200) | 0-8 | 19-61 |
 
-- The original dataset split is preserved.
-- All models use the same train, validation, and test sets.
-- Data augmentation is applied only to training data.
-- Frozen and Fine-tuned Transfer Learning use the same pretrained backbone.
-- Fine-tuning starts from the best Frozen model.
-- The test set is used only for final evaluation.
-- All models are evaluated using the same metrics.
+  Test `fire` images are square like the training ones, so the first error is not about shape. The eight
+  test `fire` images the best run calls `smokefire` with the highest confidence all show a large smoke
+  plume next to the flames, which matches the `smokefire` definition, while the training `fire` images
+  we looked at show flames with little or no smoke. This suggests that part of the gap comes from the
+  Kaggle test split labelling smoky fires differently from the training split. If a label audit confirms
+  it (next steps), no model or pipeline change can close that part.
+- **What the shared pipeline changed on test.** The test images are the same 800 as in the older
+  branches. The old frozen ResNet-50 (PyTorch, stretched images) scored 78.4 test macro F1 with 77
+  `smokefire -> smoke` errors and 70 `fire -> smokefire` errors. The frozen ResNet-50 here also scores
+  78.4, with 44 and 68: the error that the image shape causes drops by about 40%, the label-related one
+  stays. The basic NN (60.9 vs 60.1 before) and the custom CNN (76.5 vs 78.8) did not gain on test; the
+  custom CNN previously trained on stretched images without augmentation.
+
+### Caveats
+
+- One seed per run, and GPU training is not bit-reproducible. Differences inside the intervals above
+  (about +-1.5 points on validation, +-1.5-2.5 on test) should not be read as rankings.
+- Several runs stopped at or next to their epoch budget (basic NN 28/30, custom CNN 46/50, Xception
+  fine-tuning 19/20), so they may not have converged. The budgets are the ones of the original recipes and
+  of the plan, and were not changed after seeing results.
+- Only validation was used to pick epochs and settings. The Kaggle test split had already been looked at
+  in the older branches, so it is not an untouched holdout; read it as a check under distribution shift.
+- Validation holds only 4 wide `smokefire` images, so it cannot measure the wide-camera failure.
+- ResNet-50 uses the Keras (caffe) ImageNet weights, not the stronger torchvision ones of the older branch.
+
+## Next steps
+
+1. Audit the labels of test `fire` images that show heavy smoke (`results/<run>/test_predictions.csv`
+   lists every prediction). If they are really `smokefire`, report test both as labelled and as
+   corrected.
+2. Repeat the four strongest configurations with 2-3 more seeds before choosing between them.
+3. Collect wide-angle `smokefire` images from a source independent of the Kaggle test split, for
+   validation.
