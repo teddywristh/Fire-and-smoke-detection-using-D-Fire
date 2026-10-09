@@ -1,0 +1,7 @@
+{
+  "model_name": "Advanced Custom CNN",
+  "test_accuracy": 0.7825,
+  "test_macro_f1": 0.7875,
+  "total_parameters": 2742628,
+  "epochs_trained": 50
+}

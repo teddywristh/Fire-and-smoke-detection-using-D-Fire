@@ -2,11 +2,27 @@
 
 # Phương pháp và cách làm Basic Neural Network
 
+> **Integration note (2026-10-06).** The code moved from `src/basic_nn.py` to
+> `src/models/basic_nn.py` and now reads data from the shared pipeline
+> (`src/datasets.py`). Architecture and training settings are unchanged. Two
+> things differ from the run recorded in this folder:
+>
+> - Augmentation is now the shared policy in `src/augmentation.py` (flip,
+>   rotation ±10°, shift and zoom 10%, brightness ×0.8–1.2) instead of flip,
+>   brightness ±0.08 and contrast 0.9–1.1 (section 3).
+> - Resizing to 64×64 and scaling to [0, 1] now happen inside the model
+>   (`Resizing` and `Rescaling` layers), and labels are one-hot with
+>   categorical cross-entropy, which gives the same loss as before.
+>
+> The numbers in `basic_nn_results.md` come from the old pipeline. Re-run
+> `python -m src.models.basic_nn` to get results on the shared pipeline.
+> Checkpoints from the old pipeline are rejected by `--evaluate-only`.
+
 ## 1. Mục tiêu và phạm vi
 
 Phân loại ảnh thành bốn lớp `fire`, `nofire`, `smoke`, `smokefire` bằng một
 mạng fully connected làm baseline. Toàn bộ code Basic NN nằm trong
-`src/basic_nn.py`: đọc dữ liệu → tạo model → compile → fit → evaluate/predict
+`src/models/basic_nn.py`: đọc dữ liệu → tạo model → compile → fit → evaluate/predict
 → lưu metrics, biểu đồ và báo cáo kết quả.
 
 Giữ một cấu hình và một checkpoint. [Kết quả chạy](basic_nn_results.md) nằm
@@ -121,7 +137,7 @@ Tại thư mục gốc dự án:
 ```powershell
 python -m pip install -r requirements.txt
 python -m src.data_loader
-python -m src.basic_nn
+python -m src.models.basic_nn
 ```
 
 Bỏ bước chuẩn bị dữ liệu nếu đã có manifest và ảnh processed.
@@ -129,10 +145,10 @@ Train lại sẽ thay checkpoint và kết quả hiện tại.
 
 ```powershell
 # Chỉ đánh giá checkpoint đã lưu
-python -m src.basic_nn --evaluate-only
+python -m src.models.basic_nn --evaluate-only
 
 # Chỉ cập nhật Markdown kết quả từ CSV/JSON
-python -m src.basic_nn --report-only
+python -m src.models.basic_nn --report-only
 ```
 
 Checkpoint: `models/basic_nn_best.keras`. Tất cả kết quả ở `results/basic_nn/`:

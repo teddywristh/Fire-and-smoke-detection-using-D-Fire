@@ -1,8 +1,13 @@
 tensorflow
+torch
+torchvision
+timm
+kagglehub
 numpy
 pandas
 matplotlib
 scikit-learn
 pillow
+seaborn
 jupyter
 

@@ -1,49 +1,6 @@
-# Xử lý dữ liệu
+# Data preprocessing cho Frozen Features
 
-Toàn bộ pipeline nằm trong [notebook 00](notebooks/00_data_preparation.ipynb).
-Chạy các cell từ trên xuống; sửa `DATASET_ROOT` ngay trong cell cấu hình.
-Notebook 00 tự khai báo cấu hình; pipeline dùng chung từ main vẫn sử dụng `config.py`, `local_config.py` và `src/`.
-
-## Quy trình
-
-1. Duyệt train/val/test và bốn lớp; kiểm tra tên file khớp thư mục.
-2. Đọc ảnh, áp dụng EXIF orientation, chuyển RGB, direct resize 224×224.
-3. Lưu JPEG chất lượng 95 và metadata/SHA256 trong `data/split.csv`.
-4. Đánh dấu file lỗi hoặc trùng chính xác bằng `status=review`.
-5. Xem mẫu từng lớp/tập, tạo danh sách cần duyệt từ các lỗi dự đoán đã lưu.
-
-Mapping: fire=0, nofire=1, smoke=2, smokefire=3.
-Các notebook mô hình chỉ lấy `status=ok` và kiểm tra mapping trước khi chạy.
-Không tự relabel theo prediction hoặc loại các ảnh test khó để tăng accuracy.
-
-## Điều kiểm tra tự động không xác nhận được
-
-`status=ok` không đồng nghĩa ảnh đúng nhãn hoặc không bị méo. SHA256 chỉ phát
-hiện file trùng chính xác, không bắt hết cảnh giống nhau hoặc ảnh gần trùng.
-Direct resize có thể biến dạng ảnh không vuông; ảnh kéo sọc đã có trong raw
-cần được thay bằng bản nguồn tốt, không thể sửa chỉ bằng thay interpolation.
-
-`data/label_review_candidates.csv` lưu nhãn hiện tại, gợi ý và quyết định để
-duyệt thủ công. File này không tự thay đổi dữ liệu huấn luyện/đánh giá.
-Nếu thay nhãn hoặc loại ảnh, cần lưu bộ dữ liệu phiên bản mới và báo cáo rõ
-thay đổi số ảnh; kết quả mới không còn so sánh trực tiếp với test cũ.
-
-## Đầu vào Basic NN
-
-Notebook 01 dùng ảnh processed, resize 64×64 và chuẩn hóa pixel [0, 1].
-Augmentation chỉ áp dụng cho train. Giữ nguyên split và mapping.
-Notebook 00 chỉ hỗ trợ chuẩn bị dữ liệu và rà nhãn cho Basic NN.
-
-
-`filepath` trong manifest tương đối với `DATASET_ROOT`; `processed_filepath` tương đối với thư mục dự án. Notebook 01 đọc ảnh processed, nên việc đồng bộ đường dẫn raw không đổi đầu vào mô hình.
-
----
-
-## Tài liệu pipeline chung từ main
-
-# Tong hop xu ly dataset
-
-Tai lieu nay tong hop tinh trang dataset hien tai va ke hoach xu ly data cho project phan loai anh chay rung va khoi. Noi dung nay dung de chuan bi truoc khi viet code data pipeline.
+Tai lieu nay mo ta nguon du lieu, manifest va cac cach tien xu ly anh duoc dung trong nhanh PyTorch Frozen Transfer Learning. Du lieu goc va split Kaggle duoc giu rieng; cac run frozen co the dung preprocessing khac nhau theo yeu cau cua backbone. Bao cao tong hop model va metric nam trong [`docs/frozen_features.md`](frozen_features.md).
 
 ## 1. Vi tri dataset
 
@@ -204,7 +161,7 @@ Thu tu nen lam:
 
 ```text
 Fire-and-smoke-detection-using-D-Fire/
-|-- DATA_PROCESSING.md
+|-- data_preprocessing_ff.md
 |-- config.py
 |-- data/
 |   |-- raw/
@@ -220,12 +177,22 @@ Fire-and-smoke-detection-using-D-Fire/
 |   `-- transfer_finetuned/
 `-- src/
     |-- __init__.py
-    |-- augmentation.py
-    |-- data_loader.py
-    |-- evaluation.py
-    |-- gradcam.py
-    |-- preprocessing.py
-    `-- visualization.py
+    |-- data/
+    |   |-- data_loader.py
+    |   |-- download_dataset.py
+    |   |-- create_aspect_split.py
+    |   `-- preprocessing.py
+    |-- training/
+    |   |-- frozen_transfer.py
+    |   |-- frozen_multilabel.py
+    |   |-- fine_tune_transfer.py
+    |   |-- xception_aspect_frozen.py
+    |   `-- calibrate_frozen.py
+    `-- analysis/
+        |-- augmentation.py
+        |-- evaluation.py
+        |-- gradcam.py
+        `-- visualization.py
 ```
 
 ## 8. Checklist truoc khi code
@@ -248,7 +215,7 @@ Fire-and-smoke-detection-using-D-Fire/
 Da chay pipeline xu ly data bang lenh:
 
 ```bash
-python -m src.data_loader
+python -m src.data.data_loader
 ```
 
 Cac file/thuc muc chinh da sinh ra:
@@ -285,37 +252,42 @@ So luong processed theo split/lop:
 | val | 200 | 200 | 200 | 200 | 800 |
 | test | 200 | 200 | 200 | 200 | 800 |
 
-## 10. Ly do chon `direct_resize`
+## 10. Preprocessing theo tung frozen-features pipeline
 
-Raw dataset co kich thuoc anh khac nhau va kich thuoc nay co tuong quan voi lop. Neu dung padding de giu ti le, mot so lop se co vien padding dac trung hon cac lop khac. Khi do model co the hoc shortcut tu vien anh thay vi hoc lua/khoi.
+Khong co mot resize policy chung cho moi run frozen. Cac pipeline da dung la:
 
-Vi vay pipeline da chon `direct_resize` ve `224x224`:
+| Pipeline | Input | Hinh hoc | Normalize | Ghi chu |
+|---|---:|---|---|---|
+| ResNet-50/EfficientNet/MobileNet baseline | 224x224 | Direct resize | ImageNet mean/std `(0.485, 0.456, 0.406)` / `(0.229, 0.224, 0.225)` | Doc anh processed tu `data/split.csv` |
+| Xception baseline (`src.training.frozen_transfer`) | 299x299 | Resize truc tiep | ImageNet mean/std chung | Run lich su; normalization khong theo cfg Xception |
+| Xception aspect letterbox (`src.training.xception_aspect_frozen`) | 64/224/256/299 | Giu aspect, padding den | Xception mean/std `(0.5, 0.5, 0.5)` | Vien padding co the de lo aspect ratio |
+| Xception aspect square (`src.training.xception_aspect_frozen`) | 224x224 | Train random square crop; val center square crop | Xception mean/std `(0.5, 0.5, 0.5)`, pixel vao `[-1,1]` | Run hien tai; khong tao vien den tu aspect padding |
 
-- Tat ca model nhan input cung kich thuoc.
-- Khong tao them vien padding co nguy co thanh tin hieu gia.
-- Giu pipeline don gian, de giai thich va de tai lap.
-- Split goc van duoc giu nguyen, khong tron train/val/test.
+Square crop loai bo pattern vien den ma letterbox tao ra, nhung co the cat mat noi dung o canh anh. No khong xoa cac domain cues khac nhu camera, anh sang, mau sac hay boi canh. Vi vay so sanh square voi letterbox can dung validation dai dien, khong chon policy dua tren test cu.
 
-## 11. Nguyen tac chong data leak da ap dung
+## 11. Split va nguyen tac chong data leakage
 
-- Khong random split lai dataset.
-- Khong dua anh `val` hoac `test` vao `train`.
+- `data/split.csv` giu nguyen split Kaggle cho cac baseline va cac bao cao lich su.
+- `data/split_aspect.csv` tao validation moi bang cach chia lai pool train+val; test membership duoc giu nguyen va khong duoc lay mau de tao split.
+- Khong dua anh validation hay test vao training.
 - Khong dua `Forest Fire_Tester` vao train/val/test.
 - Khong tao augmentation ra dia cho `val` va `test`.
-- Khong tinh preprocessing dua tren thong tin cua `val` hoac `test`.
+- Augmentation runtime chi ap dung train; validation dung deterministic center crop/resize theo policy cua model.
 - Kiem tra duplicate SHA256 tren raw va processed: deu bang 0.
 - Manifest luu ro `split`, `label`, `class_index`, duong dan raw va duong dan processed.
 
+Luu y: test goc da duoc xem qua de so sanh nhieu cau hinh cu, nen cac metric test do chi la ket qua lich su va khong con la danh gia doc lap. Run square-crop moi chi dung train/validation de cache feature va chon checkpoint; chua nap anh/features test.
+
 ## 12. Cach dung cho buoc tiep theo
 
-Khi train model, nen doc tu `data/split.csv` va dung cot:
+Baseline frozen va cac run cu doc `data/split.csv`; run square-crop moi doc `data/split_aspect.csv`. Cac cot chinh:
 
 - `processed_filepath`: duong dan anh da xu ly.
 - `split`: `train`, `val`, hoac `test`.
 - `label`: ten lop.
 - `class_index`: nhan so.
 
-Augmentation chi ap dung runtime cho cac dong co `split == "train"`. Validation va test chi resize/normalize theo dung preprocessing cua model, khong augmentation.
+Augmentation chi ap dung runtime cho cac dong co `split == "train"`. Validation dung preprocessing deterministic. Chi danh gia test sau khi model/preprocessing duoc khoa; vi test Kaggle da bi xem trong cac run cu, can mot test set ngoai doc lap de co uoc luong cuoi cung khong bi anh huong boi qua trinh chon model.
 
 Shared loader: `src/datasets.py` turns `data/split.csv` into `tf.data` datasets
 for every model (224x224, pixels in [0, 255], one-hot labels, train-only
@@ -345,7 +317,7 @@ TESTER_ROOT = Path(r"D:/your/path/to/dataset/Forect Fire/Forest Fire_Tester")
 3. Chay lai pipeline:
 
 ```bash
-python -m src.data_loader
+python -m src.data.data_loader
 ```
 
 `local_config.py` da nam trong `.gitignore`, nen moi thanh vien co the dat duong dan rieng ma khong lam thay doi code cua nhom.
@@ -357,3 +329,21 @@ FOREST_FIRE_DATASET_ROOT
 FOREST_FIRE_TESTER_ROOT
 FOREST_FIRE_DATA_DIR
 ```
+
+## 14. Split validation theo lop va aspect cho thu nghiem Xception
+
+De validation co mot so anh `smokefire` wide, co the tao manifest rieng tu pool train/val cu. Anh trong split test duoc giu nguyen va khong tham gia qua trinh tao validation:
+
+```powershell
+python -m src.data.create_aspect_split --output data/split_aspect.csv
+```
+
+Voi du lieu hien tai, validation moi co 4 anh `smokefire` wide va train con 8 anh. So luong nay chi cho phep kiem tra pipeline, chua du de uoc luong hieu nang wide mot cach on dinh; can thu thap them anh wide co nhan tu nguon khac, khong lay tu Kaggle test.
+
+Chay frozen Xception tren split phat trien moi, square-crop ca train/validation, va lay mau co trong so theo cap (class, aspect group):
+
+```powershell
+python -m src.training.xception_aspect_frozen --split-csv data/split_aspect.csv --crop-mode square --aspect-balance --image-size 224 --epochs 30 --batch-size 32 --cpu-threads 4
+```
+
+Square crop bo vien den va dua moi input ve cung hinh hoc vuong; validation dung center crop, train dung random square crop. Crop co the bo mat thong tin gan canh anh va khong xoa moi tuong quan noi dung voi camera/domain. Ket qua va checkpoint moi duoc ghi rieng trong `results/transfer_frozen/` va `models/transfer_frozen/`. Luong nay chi trich xuat feature train/validation; khong nap anh/features test hoac danh gia test. Chon preprocessing/model bang validation, sau khi khoa quyet dinh moi danh gia test mot lan.

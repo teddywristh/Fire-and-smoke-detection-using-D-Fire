@@ -111,5 +111,6 @@
   },
   "notes": {
     "clean": 4800
-  }
+  },
+  "raw_filepath_base": "config.DATASET_ROOT"
 }

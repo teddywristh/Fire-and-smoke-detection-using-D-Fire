@@ -1,0 +1,15 @@
+filepath,processed_filepath,label,class_index,predicted_index,predicted_label,confidence
+test/fire/fire_test_1002.jpg,data/processed/test/fire/fire_test_1002.jpg,fire,0,1,nofire,0.5259876
+test/fire/fire_test_1015.jpg,data/processed/test/fire/fire_test_1015.jpg,fire,0,1,nofire,0.8606791
+test/fire/fire_test_1030.jpg,data/processed/test/fire/fire_test_1030.jpg,fire,0,1,nofire,0.4964318
+test/fire/fire_test_1032.jpg,data/processed/test/fire/fire_test_1032.jpg,fire,0,1,nofire,0.83837116
+test/fire/fire_test_1044.jpg,data/processed/test/fire/fire_test_1044.jpg,fire,0,1,nofire,0.80857366
+test/fire/fire_test_1053.jpg,data/processed/test/fire/fire_test_1053.jpg,fire,0,1,nofire,0.8391871
+test/fire/fire_test_1109.jpg,data/processed/test/fire/fire_test_1109.jpg,fire,0,1,nofire,0.57237995
+test/fire/fire_test_1115.jpg,data/processed/test/fire/fire_test_1115.jpg,fire,0,1,nofire,0.6317883
+test/fire/fire_test_1133.jpg,data/processed/test/fire/fire_test_1133.jpg,fire,0,1,nofire,0.7210668
+test/fire/fire_test_1149.jpg,data/processed/test/fire/fire_test_1149.jpg,fire,0,1,nofire,0.8654079
+test/fire/fire_test_1163.jpg,data/processed/test/fire/fire_test_1163.jpg,fire,0,1,nofire,0.85821605
+test/fire/fire_test_1168.jpg,data/processed/test/fire/fire_test_1168.jpg,fire,0,1,nofire,0.8780071
+test/fire/fire_test_1189.jpg,data/processed/test/fire/fire_test_1189.jpg,fire,0,1,nofire,0.5345444
+test/fire/fire_test_1191.jpg,data/processed/test/fire/fire_test_1191.jpg,fire,0,1,nofire,0.8161266
