@@ -1,3 +1,5 @@
+> Tài liệu lịch sử của phiên bản dùng module Python. Code hiện tại đã chuyển sang [các notebook](../../notebooks/01_basic_nn.ipynb); các tham chiếu `src/` bên dưới mô tả phiên bản trước khi chuyển.
+
 # Phương pháp và cách làm Basic Neural Network
 
 ## 1. Mục tiêu và phạm vi
@@ -108,6 +110,11 @@ mạnh hơn, CNN đơn giản ở Chương 5.1 là phương pháp tiếp theo ph
 vẫn giữ Basic NN này làm baseline riêng.
 
 ## 6. Cách chạy
+
+Có thể mở `notebooks/01_basic_nn.ipynb` để chạy cùng phương pháp theo sáu bước:
+import/cấu hình, dữ liệu, model/compile, train, đánh giá, báo cáo. Notebook dùng
+chung các hàm của `src/basic_nn.py`. `TRAIN_MODEL=True` train lại và ghi đè kết quả;
+`False` chỉ xem checkpoint và kết quả đã lưu.
 
 Tại thư mục gốc dự án:
 

@@ -1,3 +1,5 @@
+> Tài liệu lịch sử của phiên bản dùng module Python. Code hiện tại đã chuyển sang [các notebook](../../notebooks/01_basic_nn.ipynb); các tham chiếu `src/` bên dưới mô tả phiên bản trước khi chuyển.
+
 # Kết quả chạy Basic Neural Network
 
 Phương pháp và cách chạy: [basic_nn_method.md](basic_nn_method.md).

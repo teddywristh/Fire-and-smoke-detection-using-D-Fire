@@ -1,0 +1,37 @@
+{
+  "test_accuracy": 0.6025000214576721,
+  "test_loss": 0.9301430583000183,
+  "macro_f1": 0.5927951842254845,
+  "misclassified_count": 318,
+  "parameter_count": 3180164,
+  "class_names": [
+    "fire",
+    "nofire",
+    "smoke",
+    "smokefire"
+  ],
+  "image_size": [
+    64,
+    64
+  ],
+  "source": "processed_filepath",
+  "seed": 42,
+  "test_images": 800,
+  "best_val_loss": 0.6406620740890503,
+  "best_val_accuracy": 0.7512500286102295,
+  "tensorflow_version": "2.21.0",
+  "training_config": {
+    "dense_units": [
+      256,
+      128
+    ],
+    "dropout": [
+      0.3,
+      0.2
+    ],
+    "learning_rate": 0.0003,
+    "batch_size": 32,
+    "epochs": 30,
+    "batch_normalization": true
+  }
+}
