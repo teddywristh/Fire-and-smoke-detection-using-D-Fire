@@ -1,0 +1,13 @@
+run,split,evaluation,macro F1,"accuracy, non-square images",agrees with saved predictions
+frozen_resnet50,val,center crop (as evaluated),94.63,98.06,100.00
+frozen_resnet50,val,mean of 3 crops,94.62,98.06,100.00
+frozen_resnet50,test,center crop (as evaluated),78.40,74.50,100.00
+frozen_resnet50,test,mean of 3 crops,78.09,74.00,100.00
+ft_all_resnet50,val,center crop (as evaluated),97.50,99.51,100.00
+ft_all_resnet50,val,mean of 3 crops,97.50,99.51,100.00
+ft_all_resnet50,test,center crop (as evaluated),78.58,74.00,100.00
+ft_all_resnet50,test,mean of 3 crops,78.46,73.75,100.00
+ft_all_xception,val,center crop (as evaluated),96.88,98.54,100.00
+ft_all_xception,val,mean of 3 crops,97.01,99.03,100.00
+ft_all_xception,test,center crop (as evaluated),78.28,74.75,100.00
+ft_all_xception,test,mean of 3 crops,77.97,74.00,100.00

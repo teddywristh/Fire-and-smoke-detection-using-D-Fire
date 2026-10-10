@@ -17,10 +17,13 @@ notebooks/01_basic_nn.ipynb        task 1: basic neural network
 notebooks/02_custom_cnn.ipynb      task 2: custom residual + squeeze-and-excitation CNN
 notebooks/03_frozen_backbone.ipynb task 3: frozen Xception and ResNet-50
 notebooks/04_finetune_backbone.ipynb task 4: fine-tuned Xception and ResNet-50 (plan + runs)
+notebooks/05_error_analysis.ipynb  where the models fail (feeds REPORT.md)
+REPORT.md                          results and weaknesses
 data/split_aspect.csv              the split every task uses
 results/<run>/                     metrics.json, history.csv, val/test predictions, summary.png
 results/leaderboard.csv            one row per run
 results/comparison.csv             macro F1 with 95% intervals, and difference from frozen ResNet-50
+results/analysis/                  tables and figures of notebook 05
 ```
 
 Checkpoints are written to `models/<run>.weights.h5` (not tracked).
@@ -32,7 +35,8 @@ Checkpoints are written to `models/<run>.weights.h5` (not tracked).
    `test/`). Otherwise copy `local_config.example.py` to `local_config.py` and set `DATASET_ROOT`, or set the
    `FOREST_FIRE_DATASET_ROOT` environment variable.
 2. `pip install -r requirements.txt` (tested with TensorFlow 2.21, Keras 3.15, Python 3.11, RTX 3050 6 GB).
-3. Run the notebooks in order. Each one appends its runs to `results/leaderboard.csv`. Headless:
+3. Run the notebooks in order. Notebooks 01-04 each append their runs to `results/leaderboard.csv`;
+   notebook 05 analyses them. Headless:
 
    ```bash
    jupyter nbconvert --to notebook --execute --inplace notebooks/0*.ipynb
@@ -98,6 +102,9 @@ augmented images every epoch instead of one cached augmented view. As a check, f
 One run per configuration (seed 42) on an RTX 3050 6 GB. Run times: notebook 01 2 min, 02 43 min, 03 13 min,
 04 45 min. Intervals are 95% paired bootstrap intervals over the 800 val or 800 test images
 (`python -m src.compare`, written to `results/comparison.csv`). Full rows: `results/leaderboard.csv`.
+**These intervals understate test uncertainty:** test `smoke` / `smokefire` images are copies of a few
+dozen photos, and resampling those groups instead of single images widens a model's test interval to
+about +-4-7 points ([REPORT.md](REPORT.md), section 3).
 
 | Run | Trainable params | Best / last epoch | Val acc | Val macro F1 | Val F1 vs frozen ResNet-50 | Test acc | Test macro F1 | Test F1 vs frozen ResNet-50 |
 |---|---:|---:|---:|---:|---|---:|---:|---|
@@ -125,7 +132,9 @@ Test F1 per class:
 
 ### What the numbers say
 
-- **Validation separates the models; test does not.** On validation, fine-tuning beats the frozen
+- **Validation separates the models; test does not.** Part of the reason is that validation holds
+  augmented copies of the training photos: nearest-neighbour lookup alone scores 97.0% on it
+  ([REPORT.md](REPORT.md), section 2). On validation, fine-tuning beats the frozen
   ResNet-50 by 2.3-2.9 points (`all` for both backbones, `top` for ResNet-50; intervals above zero). On
   test, the custom CNN, the frozen ResNet-50 and every stage-2 run land between 76.5 and 78.6 macro F1,
   and none of them is distinguishable from the frozen ResNet-50. Only the basic NN and the two frozen
@@ -161,7 +170,8 @@ Test F1 per class:
 ### Caveats
 
 - One seed per run, and GPU training is not bit-reproducible. Differences inside the intervals above
-  (about +-1.5 points on validation, +-1.5-2.5 on test) should not be read as rankings.
+  (about +-1.5 points on validation, +-1.5-2.5 on test, and wider on test once the copies of one photo
+  are resampled together) should not be read as rankings.
 - Several runs stopped at or next to their epoch budget (basic NN 28/30, custom CNN 46/50, Xception
   fine-tuning 19/20), so they may not have converged. The budgets are the ones of the original recipes and
   of the plan, and were not changed after seeing results.
@@ -170,11 +180,11 @@ Test F1 per class:
 - Validation holds only 4 wide `smokefire` images, so it cannot measure the wide-camera failure.
 - ResNet-50 uses the Keras (caffe) ImageNet weights, not the stronger torchvision ones of the older branch.
 
-## Next steps
+## Weaknesses and next steps
 
-1. Audit the labels of test `fire` images that show heavy smoke (`results/<run>/test_predictions.csv`
-   lists every prediction). If they are really `smokefire`, report test both as labelled and as
-   corrected.
-2. Repeat the four strongest configurations with 2-3 more seeds before choosing between them.
-3. Collect wide-angle `smokefire` images from a source independent of the Kaggle test split, for
-   validation.
+[REPORT.md](REPORT.md) analyses where the models fail. In short: validation contains augmented copies
+of training photos, so it cannot rank the strong models; test `smoke` / `smokefire` come from a different,
+higher-resolution source with few original photos; most shared test errors sit on the `fire` /
+`smokefire` boundary; and the models are confidently wrong. Next steps, in order: split by source photo,
+audit the `fire` / `smokefire` labels, report test per source, add independent data, calibrate, and only
+then compare seeds.
