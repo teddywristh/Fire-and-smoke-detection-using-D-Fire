@@ -4,7 +4,7 @@
 
 This project develops and compares Deep Learning models for forest fire and smoke image classification.
 
-For the frozen-features protocols, complete experiment history, metrics, and test-set limitations, see [frozen_features.md](frozen_features.md).
+For data layout and preprocessing, see [data_preprocessing.md](data_preprocessing.md). For the ResNet-50/Xception frozen-backbone protocol and architecture, see [frozen_transfer_learning_architecture.md](frozen_transfer_learning_architecture.md). For experiment history, metrics, and evaluation limitations, see [frozen_features.md](frozen_features.md).
 
 The system classifies images into four categories:
 

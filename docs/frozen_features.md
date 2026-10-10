@@ -2,7 +2,7 @@
 
 This document summarizes the transfer learning experiments with a frozen backbone conducted for the Forest Fire C4 project, along with preprocessing/aspect tests and an analysis of evaluation limitations. The test metrics from older runs are kept as historical results for reference; they are **no longer independent test estimates**, as the same test set has been exposed during multiple configuration trials (model selection leakage).
 
-For the dataset layout, manifest creation, and preprocessing recipes specific to this branch, see [data_preprocessing_ff.md](../data_preprocessing_ff.md).
+For the dataset layout, manifest creation, and preprocessing recipes, see [data_preprocessing.md](data_preprocessing.md). The shared ResNet-50/Xception implementation is described in [frozen_transfer_learning_architecture.md](frozen_transfer_learning_architecture.md).
 
 ## 1. Problem and Data
 
