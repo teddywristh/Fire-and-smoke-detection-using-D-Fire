@@ -10,63 +10,63 @@
   "total_params": 21387052,
   "trainable_params": 525572,
   "monitor": "val_f1",
-  "best_epoch": 6,
+  "best_epoch": 9,
   "epochs_run": 10,
-  "train_minutes": 3.2,
+  "train_minutes": 4.5,
   "val": {
-    "accuracy": 0.8875,
-    "macro_f1": 0.8883852339280544,
+    "accuracy": 0.9025,
+    "macro_f1": 0.9028340785947577,
     "per_class": {
       "fire": {
-        "precision": 0.8823529411764706,
-        "recall": 0.825,
-        "f1-score": 0.8527131782945736
+        "precision": 0.8941798941798942,
+        "recall": 0.845,
+        "f1-score": 0.8688946015424165
       },
       "nofire": {
-        "precision": 0.9738219895287958,
-        "recall": 0.93,
-        "f1-score": 0.9514066496163683
+        "precision": 0.9695431472081218,
+        "recall": 0.955,
+        "f1-score": 0.9622166246851386
       },
       "smoke": {
-        "precision": 0.9310344827586207,
-        "recall": 0.945,
-        "f1-score": 0.9379652605459057
+        "precision": 0.9405940594059405,
+        "recall": 0.95,
+        "f1-score": 0.945273631840796
       },
       "smokefire": {
-        "precision": 0.776255707762557,
-        "recall": 0.85,
-        "f1-score": 0.8114558472553699
+        "precision": 0.8113207547169812,
+        "recall": 0.86,
+        "f1-score": 0.8349514563106796
       }
     },
     "confusion_matrix": [
       [
-        165,
-        0,
-        0,
-        35
-      ],
-      [
+        169,
         1,
-        186,
-        6,
-        7
+        0,
+        30
       ],
       [
-        0,
+        2,
+        191,
         4,
-        189,
+        3
+      ],
+      [
+        0,
+        3,
+        190,
         7
       ],
       [
-        21,
-        1,
+        18,
+        2,
         8,
-        170
+        172
       ]
     ],
     "recall_by_label_and_aspect": {
       "fire/square": {
-        "recall": 0.825,
+        "recall": 0.845,
         "n": 200
       },
       "nofire/other": {
@@ -74,7 +74,7 @@
         "n": 2
       },
       "nofire/square": {
-        "recall": 0.9388,
+        "recall": 0.9643,
         "n": 196
       },
       "nofire/wide": {
@@ -90,7 +90,7 @@
         "n": 8
       },
       "smoke/wide": {
-        "recall": 0.9667,
+        "recall": 0.9833,
         "n": 60
       },
       "smokefire/other": {
@@ -98,7 +98,7 @@
         "n": 6
       },
       "smokefire/square": {
-        "recall": 0.8526,
+        "recall": 0.8632,
         "n": 190
       },
       "smokefire/wide": {
@@ -108,79 +108,79 @@
     }
   },
   "test": {
-    "accuracy": 0.71375,
-    "macro_f1": 0.7195450660517679,
+    "accuracy": 0.7375,
+    "macro_f1": 0.7396516405003762,
     "per_class": {
       "fire": {
-        "precision": 0.9732142857142857,
-        "recall": 0.545,
-        "f1-score": 0.6987179487179487
+        "precision": 0.9747899159663865,
+        "recall": 0.58,
+        "f1-score": 0.7272727272727273
       },
       "nofire": {
-        "precision": 0.9320388349514563,
-        "recall": 0.96,
-        "f1-score": 0.9458128078817734
+        "precision": 0.9282296650717703,
+        "recall": 0.97,
+        "f1-score": 0.9486552567237164
       },
       "smoke": {
-        "precision": 0.6650246305418719,
-        "recall": 0.675,
-        "f1-score": 0.6699751861042184
+        "precision": 0.6556016597510373,
+        "recall": 0.79,
+        "f1-score": 0.7165532879818595
       },
       "smokefire": {
-        "precision": 0.4838709677419355,
-        "recall": 0.675,
-        "f1-score": 0.5636743215031316
+        "precision": 0.5281385281385281,
+        "recall": 0.61,
+        "f1-score": 0.5661252900232019
       }
     },
     "confusion_matrix": [
       [
-        109,
-        6,
+        116,
+        9,
         3,
-        82
+        72
       ],
       [
         2,
-        192,
+        194,
         4,
-        2
+        0
       ],
       [
         0,
         5,
-        135,
-        60
+        158,
+        37
       ],
       [
         1,
-        3,
-        61,
-        135
+        1,
+        76,
+        122
       ]
     ],
     "recall_by_label_and_aspect": {
       "fire/square": {
-        "recall": 0.545,
+        "recall": 0.58,
         "n": 200
       },
       "nofire/square": {
-        "recall": 0.96,
+        "recall": 0.97,
         "n": 200
       },
       "smoke/other": {
-        "recall": 0.5979,
+        "recall": 0.7113,
         "n": 97
       },
       "smoke/wide": {
-        "recall": 0.7476,
+        "recall": 0.8641,
         "n": 103
       },
       "smokefire/other": {
-        "recall": 0.8416,
+        "recall": 0.7624,
         "n": 101
       },
       "smokefire/wide": {
-        "recall": 0.5051,
+        "recall": 0.4545,
         "n": 99
       }
     }

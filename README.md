@@ -1,51 +1,63 @@
 # Forest fire and smoke classification (Forest Fire C4)
 
 Four-class image classification: `fire`, `nofire`, `smoke`, `smokefire` (4,800 images, 1,200 per class).
-This branch reruns every model from the `basic-nn`, `custom-complex-cnn` and `transfer-learning` branches on
-**one shared data pipeline**, and adds a fine-tuning step built on the motif of `transfer_learning_all.py`
-(frozen ImageNet backbone, then a `GlobalAveragePooling -> Dense(256) -> Dropout(0.5)` head). One framework
-(Keras 3 / TensorFlow), one split, one notebook per task.
+Four tasks, one self-contained notebook each, all on **the same data pipeline**: the models of the
+`basic-nn`, `custom-complex-cnn` and `transfer-learning` branches, and a fine-tuning step built on the
+motif of `transfer_learning_all.py`, a CIFAR-10 / VGG16 sample script that is not in this repository (frozen
+ImageNet backbone under a `GlobalAveragePooling -> Dense(256) -> Dropout(0.5)` head). Keras 3 / TensorFlow.
 
 ## Layout
 
 ```text
-config.py                          dataset path, class names, image size, seed
-src/data.py                        the shared data pipeline; `python -m src.data` rebuilds the split
-src/experiment.py                  training, evaluation, plots, leaderboard, ImageNet backbones
-src/compare.py                     bootstrap intervals for every run (results/comparison.csv)
-notebooks/01_basic_nn.ipynb        task 1: basic neural network
-notebooks/02_custom_cnn.ipynb      task 2: custom residual + squeeze-and-excitation CNN
-notebooks/03_frozen_backbone.ipynb task 3: frozen Xception and ResNet-50
+notebooks/01_basic_nn.ipynb          task 1: basic neural network
+notebooks/02_custom_cnn.ipynb        task 2: custom residual + squeeze-and-excitation CNN
+notebooks/03_frozen_backbone.ipynb   task 3: frozen Xception and ResNet-50
 notebooks/04_finetune_backbone.ipynb task 4: fine-tuned Xception and ResNet-50 (plan + runs)
-notebooks/05_error_analysis.ipynb  where the models fail (feeds REPORT.md)
-REPORT.md                          results and weaknesses
-data/split_aspect.csv              the split every task uses
-results/<run>/                     metrics.json, history.csv, val/test predictions, summary.png
-results/leaderboard.csv            one row per run
-results/comparison.csv             macro F1 with 95% intervals, and difference from frozen ResNet-50
-results/analysis/                  tables and figures of notebook 05
+results/<run>/                       metrics.json, history.csv, val/test predictions, summary.png
+results/leaderboard.csv              one row per run
+results/split_aspect.csv             the split every notebook rebuilt and used
 ```
 
-Checkpoints are written to `models/<run>.weights.h5` (not tracked).
+Each run trained to the end leaves `models/<run>.weights.h5` (best epoch) and `models/<run>.fit.json` (its
+history and `fit()` arguments); neither is tracked.
 
-## Setup
+## Running
 
-1. Download the dataset (Kaggle `obulisainaren/forest-fire-c4`). By default the code expects it next to the
-   repository, at `../dataset/Forect Fire/Forest Fire_Dataset` (the folder that holds `train/`, `val/`,
-   `test/`). Otherwise copy `local_config.example.py` to `local_config.py` and set `DATASET_ROOT`, or set the
-   `FOREST_FIRE_DATASET_ROOT` environment variable.
-2. `pip install -r requirements.txt` (tested with TensorFlow 2.21, Keras 3.15, Python 3.11, RTX 3050 6 GB).
-3. Run the notebooks in order. Notebooks 01-04 each append their runs to `results/leaderboard.csv`;
-   notebook 05 analyses them. Headless:
+Each notebook is self-contained: it imports no project file and reads no project file, so any one of
+them can be run alone, in any order. The four `.ipynb` files are therefore enough to hand over: copied into
+any folder, they run there, and their first cell says how. Add a `data/` folder holding the dataset or its
+`.zip` next to them only for a machine without internet, and the `models/` files (1.3 GB for all ten runs)
+to skip the training.
+
+1. `pip install -r requirements.txt` (tested with TensorFlow 2.21, Keras 3.15, Python 3.11, RTX 3050 6 GB).
+2. The dataset is Kaggle `obulisainaren/forest-fire-c4` (version 2). Each notebook looks for the folder that
+   holds `train/`, `val/` and `test/`, up to three levels down, in `DATASET_ROOT` (its first code cell) or
+   `$FOREST_FIRE_DATASET_ROOT` when set, else in `data/`, `../dataset/` and `/kaggle/input`. It takes only a
+   folder whose images are byte for byte the ones behind the results below (SHA-256 of every image), so a
+   resized copy with the same file names is skipped. If none has them, it unpacks the `.zip` in `data/`,
+   first downloading it from Kaggle's public endpoint when there is none (129 MB, no Kaggle account,
+   standard library only). The same download by hand:
+
+   ```bash
+   curl -L -o data/forest-fire-c4-v2.zip \
+     "https://www.kaggle.com/api/v1/datasets/download/obulisainaren/forest-fire-c4?datasetVersionNumber=2"
+   ```
+
+3. Run a notebook. It writes `results/` and `models/` (and `data/` when it downloads) next to the
+   `notebooks/` folder, or next to the notebook itself when its folder has another name. With
+   `USE_CHECKPOINTS = True` (the default, first code cell) a run that left both files in `models/` is
+   reloaded and only scored, unless its `fit()` arguments changed; set it to `False` to retrain. Rescoring
+   on a GPU can move one or two images whose top two classes nearly tie (up to 0.2 points). Headless:
 
    ```bash
    jupyter nbconvert --to notebook --execute --inplace notebooks/0*.ipynb
    ```
 
-`data/split_aspect.csv` is committed; `python -m src.data` rebuilds it from the raw images and gives the
-same file.
+Every notebook rebuilds the split from the raw images and checks two fingerprints against the ones used for
+the results below (file names per split, and the bytes of every image), so all four always train and score
+on exactly the same images.
 
-## The shared data pipeline
+## The data pipeline (identical in all four notebooks)
 
 The raw images do not share one shape, and the shape follows the class, differently in each split. Aspect
 group = width/height in 0.9-1.1 (`square`), 1.6-1.95 (`wide`), anything else (`other`):
@@ -58,133 +70,103 @@ group = width/height in 0.9-1.1 (`square`), 1.6-1.95 (`wide`), anything else (`o
 | smokefire | 770 / 8 / 22 | 190 / 4 / 6 | **0 / 99 / 101** |
 
 Training `smokefire` is almost all square, test `smokefire` is never square. Stretching the images to a
-square (the old `direct_resize`) or padding them (letterbox) both leave the shape visible to the model,
-which can then learn "non-square means smoke". The pipeline of the transfer-learning branch removes that
-shortcut, and every task now uses it (`src/data.py`):
+square or padding them leaves the shape visible to the model, which can then learn "non-square means smoke".
+The pipeline of the transfer-learning branch removes that shortcut:
 
-1. **Split** `data/split_aspect.csv`: the Kaggle test split is kept untouched. The Kaggle train+val pool is
-   re-split 800/200 per class, stratified by aspect group, so validation holds a few wide `smokefire`
-   images (4) instead of 1.
+1. **Split:** the Kaggle test split is kept untouched. The Kaggle train+val pool is re-split 800/200 per
+   class, stratified by aspect group, so validation holds 4 wide `smokefire` images instead of 1.
 2. **Square crop from the raw image**, then bilinear resize to 224x224: a random crop on train (side 72-100%
    of the short side, random position), the center crop on val/test. No stretching, no padding.
-3. **Train-only augmentation**: small affine (rotate +-5 deg, translate +-4%, scale 0.94-1.06, shear +-2
-   deg), horizontal flip, brightness and contrast x0.88-1.12.
-4. **Aspect-balanced sampling**: every epoch draws 3,200 training images with replacement, with probability
+3. **Train-only augmentation:** small affine (rotate +-5 deg, translate +-4%, scale 0.94-1.06, shear +-2 deg),
+   horizontal flip, brightness and contrast x0.88-1.12.
+4. **Aspect-balanced sampling:** every epoch draws 3,200 training images with replacement, with probability
    proportional to 1/sqrt(size of the image's (class, aspect group)), so the 8 wide training `smokefire`
    images are not drowned by the 770 square ones.
 
-Batches are float32 pixels in [0, 255] with one-hot labels; each model rescales them itself ([0, 1] for the
-custom networks, [-1, 1] for Xception, caffe BGR mean subtraction for ResNet-50). Every run picks its best
-epoch on validation; test is predicted once, after training.
+Batches are float32 pixels in [0, 255] with one-hot labels; each model rescales them itself. Every run picks
+its best epoch on validation; test is predicted once, after training.
 
 ## The four tasks
 
-Each notebook keeps the model and training recipe of the branch it comes from; only the data changed.
+Each notebook keeps the model and training recipe of the latest commit of the branch it comes from; only the
+data pipeline is shared.
 
-| Notebook | Source | Model and training (kept) |
+| Notebook | Source | Model and training |
 |---|---|---|
-| `01_basic_nn` | `basic-nn`, `src/basic_nn.py` | resize to 64x64, Flatten, Dense(256), Dropout(0.5), Dense(4); Adam 5e-4; 30 epochs; ReduceLROnPlateau; early stopping; best val loss |
-| `02_custom_cnn` | `custom-complex-cnn`, `02_custom_cnn.ipynb` | stride-2 stem, 5 residual squeeze-and-excitation blocks, GAP, Dense(128); label smoothing 0.05; Adam 1e-3; 50 epochs; best val loss |
+| `01_basic_nn` | `basic-nn` @ `21a47a8` | 64x64 (antialiased), ImageNet mean/std, random flip, Flatten, Dense(256, BN, ReLU), Dropout(0.3), Dense(128), Dropout(0.2), Dense(4); Adam 3e-4; 30 epochs; ReduceLROnPlateau; early stopping; best val loss |
+| `02_custom_cnn` | `custom-complex-cnn` @ `c02b33a` | stride-2 stem, 5 residual squeeze-and-excitation blocks (ReLU), GAP, Dropout(0.4), Dense(128); Adam 1e-3; 50 epochs; ReduceLROnPlateau; early stopping (patience 10); best val loss |
 | `03_frozen_backbone` | `transfer-learning`, `xception_aspect_frozen.py` protocol | frozen ImageNet Xception / ResNet-50, head Dropout(0.45), Dense(512), BatchNorm, Dropout(0.2), Dense(4); AdamW 5e-4; 30 epochs; best val macro F1 |
 | `04_finetune_backbone` | `transfer_learning_all.py` motif | stage 1 = the motif (frozen backbone, Dense(256), Dropout(0.5), Adam 1e-3, 10 epochs); stage 2 unfreezes the last stage (`top`) or every layer (`all`) at Adam 1e-5 for up to 20 epochs, BatchNorm frozen; best val macro F1 |
 
-The fine-tuning plan and its reasons are written at the top of `04_finetune_backbone.ipynb`.
-
-Two changes come from moving everything to one framework. The `transfer-learning` branch ran PyTorch;
-here Xception is the Keras ImageNet checkpoint (the same weights timm's `legacy_xception` was converted
-from), and ResNet-50 is the Keras ImageNet checkpoint (the original caffe weights, about 75% ImageNet
-top-1) instead of torchvision's `DEFAULT` weights (about 81%). The frozen backbone also sees freshly
-augmented images every epoch instead of one cached augmented view. As a check, frozen Xception reaches
-89.9% validation macro F1 here against 89.84% for the PyTorch run on the same split.
+The fine-tuning plan and its reasons are written at the top of `04_finetune_backbone.ipynb`. The
+`transfer-learning` branch ran PyTorch; here Xception is the Keras ImageNet checkpoint (the weights timm's
+`legacy_xception` was converted from) and ResNet-50 the Keras ImageNet checkpoint (the original caffe weights,
+about 75% top-1) instead of torchvision's `DEFAULT` weights (about 81%).
 
 ## Results
 
-One run per configuration (seed 42) on an RTX 3050 6 GB. Run times: notebook 01 2 min, 02 43 min, 03 13 min,
-04 45 min. Intervals are 95% paired bootstrap intervals over the 800 val or 800 test images
-(`python -m src.compare`, written to `results/comparison.csv`). Full rows: `results/leaderboard.csv`.
-**These intervals understate test uncertainty:** test `smoke` / `smokefire` images are copies of a few
-dozen photos, and resampling those groups instead of single images widens a model's test interval to
-about +-4-7 points ([REPORT.md](REPORT.md), section 3).
+One run per configuration (seed 42) on an RTX 3050 6 GB; training took 2, 34, 21 and 59 minutes per notebook.
+Macro F1 and accuracy in %, from `results/leaderboard.csv`.
 
-| Run | Trainable params | Best / last epoch | Val acc | Val macro F1 | Val F1 vs frozen ResNet-50 | Test acc | Test macro F1 | Test F1 vs frozen ResNet-50 |
-|---|---:|---:|---:|---:|---|---:|---:|---|
-| 1 Basic NN | 3.15 M | 28 / 30 | 68.6 | 67.9 | -26.7 [-30.0, -23.6] | 60.5 | 60.9 | -17.5 [-21.2, -13.9] |
-| 2 Custom CNN | 2.74 M | 46 / 50 | 95.6 | 95.6 | +1.0 [-0.7, +2.8] | 76.2 | 76.5 | -1.9 [-4.4, +0.4] |
-| 3 Frozen Xception | 1.05 M | 15 / 21 | 89.9 | 89.9 | -4.7 [-6.9, -2.6] | 73.9 | 74.6 | -3.8 [-6.2, -1.4] |
-| 3 Frozen ResNet-50 | 1.05 M | 11 / 17 | 94.6 | 94.6 | reference | 77.8 | 78.4 | reference |
-| 4 Xception, stage 1 (motif, frozen) | 0.53 M | 6 / 10 | 88.8 | 88.8 | -5.8 [-8.1, -3.6] | 71.4 | 72.0 | -6.4 [-9.0, -3.9] |
-| 4 Xception, stage 2 `top` | 7.30 M | 19 / 20 | 93.8 | 93.8 | -0.9 [-2.7, +1.0] | 75.9 | 76.6 | -1.8 [-3.8, +0.2] |
-| 4 Xception, stage 2 `all` | 21.28 M | 19 / 20 | 96.9 | 96.9 | +2.3 [+0.6, +4.0] | 77.6 | 78.3 | -0.1 [-2.2, +2.0] |
-| 4 ResNet-50, stage 1 (motif, frozen) | 0.53 M | 8 / 10 | 94.6 | 94.6 | 0.0 [-1.5, +1.4] | 78.0 | 78.6 | +0.2 [-1.2, +1.6] |
-| 4 ResNet-50, stage 2 `top` | 15.48 M | 7 / 12 | 97.0 | 97.0 | +2.4 [+1.1, +3.8] | 77.5 | 78.1 | -0.3 [-2.1, +1.5] |
-| 4 ResNet-50, stage 2 `all` | 24.01 M | 5 / 10 | **97.5** | **97.5** | +2.9 [+1.5, +4.3] | 77.9 | **78.6** | +0.2 [-1.6, +2.0] |
+| Run | Trainable params | Best / last epoch | Minutes | Val acc | Val macro F1 | Test acc | Test macro F1 | Test F1 fire / nofire / smoke / smokefire |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 Basic NN | 3.18 M | 27 / 30 | 2 | 70.1 | 69.5 | 63.5 | 63.4 | 72.2 / 71.3 / 64.6 / 45.3 |
+| 2 Custom CNN | 2.74 M | 46 / 50 | 34 | 95.1 | 95.1 | 76.6 | 77.0 | 75.0 / 94.5 / 70.7 / 67.9 |
+| 3 Frozen Xception | 1.05 M | 22 / 28 | 13 | 90.8 | 90.7 | 74.9 | 75.4 | 73.7 / 96.5 / 73.2 / 58.3 |
+| 3 Frozen ResNet-50 | 1.05 M | 10 / 16 | 8 | 94.1 | 94.1 | 79.0 | 79.6 | 79.2 / 97.7 / 73.7 / 67.9 |
+| 4 Xception, stage 1 (motif, frozen) | 0.53 M | 9 / 10 | 4 | 90.2 | 90.3 | 73.8 | 74.0 | 72.7 / 94.9 / 71.7 / 56.6 |
+| 4 Xception, stage 2 `top` | 7.30 M | 20 / 20 | 12 | 94.0 | 94.1 | 74.8 | 75.5 | 73.9 / 98.5 / 67.9 / 61.7 |
+| 4 Xception, stage 2 `all` | 21.28 M | 10 / 15 | 15 | 96.2 | 96.3 | 76.4 | 77.1 | 76.5 / 99.0 / 70.5 / 62.6 |
+| 4 ResNet-50, stage 1 (motif, frozen) | 0.53 M | 10 / 10 | 5 | 94.9 | 94.9 | 79.6 | 80.2 | 80.9 / 98.3 / 73.5 / 68.0 |
+| 4 ResNet-50, stage 2 `top` | 15.48 M | 8 / 13 | 8 | 97.5 | 97.5 | 77.6 | 78.2 | 78.2 / 98.8 / 68.6 / 67.0 |
+| 4 ResNet-50, stage 2 `all` | 24.01 M | 10 / 15 | 16 | **97.9** | **97.9** | 78.0 | 78.4 | 81.1 / 98.5 / 66.5 / 67.7 |
 
-Test F1 per class:
+How much of this is noise: an earlier run of the same backbone configurations on the same split moved test
+macro F1 by up to 2 points and validation by up to 1.5; rerunning the basic NN and the custom CNN moved
+validation by 1.4 and 1.7 points and test by 0.9 and 0.4; and the four-seed frozen runs below vary by about
+1 point on validation and 2 on test (standard deviation). Differences of 2-3 test points between the
+stronger models are not rankings.
 
-| Run | fire | nofire | smoke | smokefire |
-|---|---:|---:|---:|---:|
-| 1 Basic NN | 71.2 | 66.1 | 59.8 | 46.4 |
-| 2 Custom CNN | 74.7 | 92.7 | 70.1 | 68.5 |
-| 3 Frozen Xception | 74.4 | 94.7 | 68.7 | 60.7 |
-| 3 Frozen ResNet-50 | 77.5 | 98.0 | 73.4 | 64.7 |
-| 4 Xception, stage 2 `all` | 76.2 | 99.2 | 71.5 | 66.1 |
-| 4 ResNet-50, stage 2 `all` | 78.2 | 99.2 | 72.1 | 64.8 |
+- **Validation:** fine-tuning the whole ResNet-50 is best (97.9), then the other fine-tuned runs (94-97.5)
+  and the custom CNN (95.1). The basic NN (69.5) and the frozen Xception runs (90-91) are clearly behind.
+- **Test:** the frozen and stage-1 ResNet-50 (79.6, 80.2), the fine-tuned runs (75.5-78.4) and the custom CNN
+  (77.0) all fall in a 5-point band. Fine-tuning raises validation by 2.5-6 points over stage 1; on test it
+  helps Xception (74.0 -> 77.1) but not ResNet-50 (80.2 -> 78.4).
+- **The largest test errors are the same for every strong model:** `fire` predicted `smokefire`, and `smoke`
+  and `smokefire` confused with each other.
 
-### What the numbers say
+### The frozen protocol of the `transfer-learning` branch, for comparison
 
-- **Validation separates the models; test does not.** Part of the reason is that validation holds
-  augmented copies of the training photos: nearest-neighbour lookup alone scores 97.0% on it
-  ([REPORT.md](REPORT.md), section 2). On validation, fine-tuning beats the frozen
-  ResNet-50 by 2.3-2.9 points (`all` for both backbones, `top` for ResNet-50; intervals above zero). On
-  test, the custom CNN, the frozen ResNet-50 and every stage-2 run land between 76.5 and 78.6 macro F1,
-  and none of them is distinguishable from the frozen ResNet-50. Only the basic NN and the two frozen
-  Xception runs are clearly worse.
-- **Fine-tuning helps Xception more than ResNet-50.** Xception goes from 88.8 (motif, frozen) to 96.9
-  validation F1 and from 72.0 to 78.3 test F1. ResNet-50's frozen features are already at 94.6 / 78.6, and
-  fine-tuning moves validation to 97.5 but leaves test flat. Unfreezing everything scores at least as well
-  as unfreezing the last stage and takes 1.5-1.8x the time per epoch.
-- **The custom CNN trained from scratch is as good as the frozen ImageNet backbones on validation** (95.6),
-  and reaches 76.5 on test, 1.9 points under the frozen ResNet-50 (the interval includes zero).
-- **The 19-20 point gap between validation and test is the same for every strong model**, so it comes from
-  the test split, not from the models. The errors that grow on test:
+The branch's own frozen comparison (`src/training/xception_aspect_frozen.py` at `748c653`, plus its nested
+cross-validation script) was run unmodified on the same split. It differs from notebook 03 in four ways:
+PyTorch `timm` backbones (ResNet-50 `a1_in1k`), both backbones fed [-1, 1] pixels (ResNet-50 expects ImageNet
+mean/std), one cached augmented view per run instead of fresh augmentation every epoch, and four seeds.
+The branch never scores test; test below was scored afterwards, only for this comparison.
+Files: `results/colleague_frozen_protocol/`.
 
-  | Error (images) | val, strong models | test, strong models |
-  |---|---:|---:|
-  | `fire` predicted `smokefire` (of 200) | 9-35 | 64-82 |
-  | `smoke` predicted `smokefire` (of 200) | 0-7 | 57-81 |
-  | `smokefire` predicted `smoke` (of 200) | 0-8 | 19-61 |
+| Protocol | Backbone | Seeds | Val macro F1 | Test macro F1 |
+|---|---|---:|---:|---:|
+| Notebook 03 | ResNet-50 (Keras) | 1 | 94.1 | 79.6 |
+| Notebook 03 | Xception (Keras) | 1 | 90.7 | 75.4 |
+| `transfer-learning` branch | ResNet-50 (timm) | 4 | 93.0 +- 1.0 | 77.6 +- 2.3 |
+| `transfer-learning` branch | Xception (timm) | 4 | 88.8 +- 1.2 | 71.9 +- 2.1 |
+| Branch nested CV, 5 x 4 folds, out-of-fold on train+val | ResNet-50 (timm) | 1 | 94.0 | not scored |
+| Branch nested CV, 5 x 4 folds, out-of-fold on train+val | Xception (timm) | 1 | 88.0 | not scored |
 
-  Test `fire` images are square like the training ones, so the first error is not about shape. The eight
-  test `fire` images the best run calls `smokefire` with the highest confidence all show a large smoke
-  plume next to the flames, which matches the `smokefire` definition, while the training `fire` images
-  we looked at show flames with little or no smoke. This suggests that part of the gap comes from the
-  Kaggle test split labelling smoky fires differently from the training split. If a label audit confirms
-  it (next steps), no model or pipeline change can close that part.
-- **What the shared pipeline changed on test.** The test images are the same 800 as in the older
-  branches. The old frozen ResNet-50 (PyTorch, stretched images) scored 78.4 test macro F1 with 77
-  `smokefire -> smoke` errors and 70 `fire -> smokefire` errors. The frozen ResNet-50 here also scores
-  78.4, with 44 and 68: the error that the image shape causes drops by about 40%, the label-related one
-  stays. The basic NN (60.9 vs 60.1 before) and the custom CNN (76.5 vs 78.8) did not gain on test; the
-  custom CNN previously trained on stretched images without augmentation.
+Both protocols rank ResNet-50 above Xception, by 3-6 points. Notebook 03 sits 1-2 validation points and
+2-3.5 test points above the branch's four-seed mean, 0.9-1.7 seed standard deviations.
+Rerunning the branch reproduced its committed four-seed validation means within 0.4 points.
 
-### Caveats
+## Known limitations
 
-- One seed per run, and GPU training is not bit-reproducible. Differences inside the intervals above
-  (about +-1.5 points on validation, +-1.5-2.5 on test, and wider on test once the copies of one photo
-  are resampled together) should not be read as rankings.
-- Several runs stopped at or next to their epoch budget (basic NN 28/30, custom CNN 46/50, Xception
-  fine-tuning 19/20), so they may not have converged. The budgets are the ones of the original recipes and
-  of the plan, and were not changed after seeing results.
-- Only validation was used to pick epochs and settings. The Kaggle test split had already been looked at
-  in the older branches, so it is not an untouched holdout; read it as a check under distribution shift.
-- Validation holds only 4 wide `smokefire` images, so it cannot measure the wide-camera failure.
-- ResNet-50 uses the Keras (caffe) ImageNet weights, not the stronger torchvision ones of the older branch.
-
-## Weaknesses and next steps
-
-[REPORT.md](REPORT.md) analyses where the models fail. In short: validation contains augmented copies
-of training photos, so it cannot rank the strong models; test `smoke` / `smokefire` come from a different,
-higher-resolution source with few original photos; most shared test errors sit on the `fire` /
-`smokefire` boundary; and the models are confidently wrong. Next steps, in order: split by source photo,
-audit the `fire` / `smokefire` labels, report test per source, add independent data, calibrate, and only
-then compare seeds.
+- **Validation is easier than it looks.** The Kaggle dataset was built by augmenting source photos with
+  Keras' `ImageDataGenerator` (stated in the dataset's README), and copies of one photo end up in both train
+  and validation. A nearest-neighbour lookup on plain ImageNet features, with no training, scores 97% on
+  validation and 74.5% on test. The branch's nested cross-validation splits images, not photos, so it
+  shares this problem.
+- **Test `smoke` / `smokefire` come from another source:** higher-resolution images, and a few dozen photos
+  repeated many times. Errors come in blocks, so the effective test size is far below 800.
+- **Labels:** most test `fire` images that every model calls `smokefire` show a large smoke plume next to
+  the flames.
+- **Confident mistakes:** fine-tuned models put a confidence above 0.9 on most of their test errors.
+- One seed per configuration. The full error analysis (`REPORT.md`, notebook 05) is in commit `fc2b1db`.

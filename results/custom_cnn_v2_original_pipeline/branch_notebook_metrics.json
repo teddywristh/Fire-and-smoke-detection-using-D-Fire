@@ -1,7 +1,0 @@
-{
-  "model_name": "Custom CNN (Residual + SE)",
-  "test_accuracy": 0.7638,
-  "test_macro_f1": 0.7662,
-  "total_parameters": 2743736,
-  "epochs_trained": 50
-}

@@ -3,11 +3,9 @@ __pycache__/
 .ipynb_checkpoints/
 .vscode/
 .env
-local_config.py
 
-# Raw images live outside the repository (see config.DATASET_ROOT).
-data/*
-!data/split_aspect.csv
+# Raw images live outside the repository (the notebooks find or download them).
+data/
 
 # Checkpoints are rebuilt by the notebooks.
 models/
