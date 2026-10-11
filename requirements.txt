@@ -1,13 +1,9 @@
-tensorflow
-torch
-torchvision
-timm
-kagglehub
+# Tested with TensorFlow 2.21 / Keras 3.15 on Python 3.11.
+# On Linux with an NVIDIA GPU install `tensorflow[and-cuda]` instead.
+tensorflow>=2.16
 numpy
 pandas
-matplotlib
-scikit-learn
 pillow
-seaborn
+scikit-learn
+matplotlib
 jupyter
-

@@ -1,19 +1,11 @@
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
-local_config.py
+.vscode/
 .env
 
-data/processed/train/
-data/processed/val/
-data/processed/test/
+# Raw images live outside the repository (the notebooks find or download them).
+data/
 
-models/*
-!models/.gitkeep
-
-# Keep raw datasets out of Git if they are stored inside the project.
-data/raw/*
-!data/raw/.gitkeep
-
-# Cached backbone features for transfer learning.
-data/cache/
+# Checkpoints are rebuilt by the notebooks.
+models/

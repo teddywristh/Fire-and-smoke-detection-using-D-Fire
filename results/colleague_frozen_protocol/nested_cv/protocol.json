@@ -1,0 +1,17 @@
+{
+  "protocol": "nested-frozen-cv-v1",
+  "split_manifest": "/tmp/claude-1000/-home-minhquang-Fire-and-smoke-detection-using-D-Fire/1462ddb6-20b0-4166-a199-2ce4f68e9ba7/scratchpad/wt_tl/data/split_aspect.csv",
+  "development_rows": 4000,
+  "test_rows_loaded": false,
+  "test_metrics_generated": false,
+  "outer_folds": 5,
+  "inner_folds": 4,
+  "seed": 42,
+  "architectures": [
+    "resnet50",
+    "xception"
+  ],
+  "inner_fold_ensemble": true,
+  "prediction_rule": "mean class probability across inner-fold selected checkpoints",
+  "results_runtime_seconds": 314.3
+}
