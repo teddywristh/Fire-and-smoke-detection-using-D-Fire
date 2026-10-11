@@ -107,9 +107,26 @@ Không có một phép biến đổi ảnh duy nhất cho tất cả thí nghi�
 | --- | --- | --- | --- |
 | `src.data.data_loader` | Ảnh gốc | Direct resize 224×224, lưu JPEG | RGB; chưa scale tensor |
 | Baseline trong `src.training.frozen_transfer` | Ảnh processed | Resize theo backbone; Xception baseline dùng 299×299 | ImageNet mean/std trong transform baseline |
-| So sánh frozen ResNet-50/Xception | Ảnh gốc từ `data/split_aspect.csv` | Square crop rồi resize 224×224 | Tensor được scale về `[-1, 1]`; xem lưu ý trong [tài liệu kiến trúc frozen](frozen_transfer_learning_architecture.md) |
+| So sánh frozen ResNet-50/Xception | Ảnh gốc từ `data/split_aspect.csv` | Train: random square crop rồi resize 224×224; validation: center square crop rồi resize 224×224 | Tensor được scale về `[-1, 1]`; xem lưu ý trong [tài liệu kiến trúc frozen](frozen_transfer_learning_architecture.md) |
 
 Không so sánh metric giữa các hàng trên như thể chỉ thay đổi backbone; nguồn ảnh, crop, kích thước và cách huấn luyện có thể khác.
+
+### Protocol được dùng trong notebook `frozen_transfer`
+
+Notebook [`frozen_transfer_learning_pipeline.ipynb`](../notebooks/frozen_transfer_learning_pipeline.ipynb)
+đọc các CSV artifacts đã lưu và không huấn luyện lại model. Protocol dùng chung cho bốn seed
+`42`, `7`, `123`, `2024`:
+
+1. Chỉ lấy hàng `train` và `val` từ `data/split_aspect.csv`; test không được load.
+2. Áp dụng EXIF transpose và chuyển mọi ảnh sang RGB.
+3. Crop vuông trước resize để tránh đưa phần padding hoặc tỷ lệ ảnh không đồng nhất vào backbone.
+4. Chỉ train mới dùng affine nhẹ, horizontal flip và brightness/contrast jitter.
+5. Validation dùng center crop xác định, không augmentation.
+6. Scale pixel về `[-1, 1]` trước khi trích xuất feature.
+
+Các biểu đồ trong notebook gồm accuracy/macro-F1 theo seed và F1 trung bình theo lớp.
+Các giá trị mean và population variance trong báo cáo được tính trực tiếp từ
+`results/frozen_backbone_comparison_per_seed.csv` với `ddof=0`.
 
 ## 7. Nguyên tắc chống rò rỉ dữ liệu
 

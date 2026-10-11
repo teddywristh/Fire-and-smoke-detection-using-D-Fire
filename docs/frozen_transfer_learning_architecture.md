@@ -116,6 +116,25 @@ CSV comparison và manifest là artifacts cần thiết để tái tạo bảng/
 
 Tính theo mean từ các CSV, ResNet-50 cao hơn khoảng 4.41 điểm phần trăm accuracy và 4.38 điểm phần trăm macro F1. Variance thấp hơn cho thấy metric ít dao động hơn giữa bốn seed trong protocol này; không đảm bảo kết quả tương tự trên nguồn ảnh hoặc split khác.
 
+### Mean và population variance cho toàn bộ metric
+
+Notebook `frozen_transfer_learning_pipeline.ipynb` cũng trực quan hóa accuracy,
+macro F1 và F1 theo từng lớp. Bảng dưới giữ mean ở dạng phần trăm, còn variance ở
+thang điểm gốc `[0, 1]`; tất cả variance dùng `ddof=0`.
+
+| Metric | ResNet-50 mean | ResNet-50 variance | Xception mean | Xception variance |
+| --- | ---: | ---: | ---: | ---: |
+| Accuracy | 93.344% | 0.000015137 | 88.938% | 0.000101953 |
+| Macro F1 | 93.338% | 0.000014739 | 88.958% | 0.000094932 |
+| F1 `fire` | 89.082% | 0.000083435 | 87.011% | 0.000159946 |
+| F1 `nofire` | 98.178% | 0.000004222 | 94.011% | 0.000092633 |
+| F1 `smoke` | 97.953% | 0.000018358 | 92.249% | 0.000052670 |
+| F1 `smokefire` | 88.137% | 0.000030552 | 82.560% | 0.000164830 |
+
+ResNet-50 có mean cao hơn ở mọi metric và variance thấp hơn ở mọi metric trong
+bốn seed này. Đây là mô tả độ dao động giữa seed, không phải confidence interval,
+kiểm định ý nghĩa thống kê hoặc bằng chứng tổng quát hóa sang dataset mới.
+
 ## 9. Diễn giải và giới hạn
 
 - Kết quả trên là validation-only; không phải kết luận độc lập trên test.
@@ -127,5 +146,6 @@ Tính theo mean từ các CSV, ResNet-50 cao hơn khoảng 4.41 điểm phần t
 ## 10. Tài liệu liên quan
 
 - [Preprocessing dữ liệu](data_preprocessing.md)
+- [So sánh frozen ResNet-50 và Xception qua bốn seed](frozen_backbone_comparison.md)
 - [Lịch sử nhánh frozen features](frozen_features.md)
 - [Notebook so sánh](../notebooks/frozen_transfer_learning_pipeline.ipynb)

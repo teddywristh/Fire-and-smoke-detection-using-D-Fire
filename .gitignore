@@ -17,3 +17,7 @@ models/*
 !models/.gitkeep
 
 results/*
+
+# Frozen backbone comparison artifacts
+!results/frozen_backbone_comparison_per_seed.csv
+!results/frozen_backbone_comparison_mean_variance.csv
