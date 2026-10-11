@@ -1,0 +1,41 @@
+{
+  "test_accuracy": 0.7524999976158142,
+  "test_loss": 0.8049651384353638,
+  "macro_f1": 0.7506164670669943,
+  "misclassified_count": 198,
+  "parameter_count": 21387052,
+  "trainable_parameter_count": 525572,
+  "best_epoch": 10,
+  "best_val_loss": 0.2571374475955963,
+  "class_names": [
+    "fire",
+    "nofire",
+    "smoke",
+    "smokefire"
+  ],
+  "image_size": [
+    224,
+    224
+  ],
+  "seed": 42,
+  "preprocessing": {
+    "source": "processed_filepath",
+    "manifest": "data/split.csv",
+    "normalization": "keras.applications.xception.preprocess_input",
+    "augmentation": "horizontal_flip"
+  },
+  "training_config": {
+    "backbone": "xception",
+    "stage": "stage1",
+    "unfrozen": "none",
+    "learning_rate": 0.001,
+    "epochs": 10,
+    "patience": null,
+    "head": "Dense 256 ReLU - Dropout 0.5 - Dense 4",
+    "optimizer": "Adam",
+    "batch_size": 32,
+    "batchnorm": "frozen",
+    "mixed_precision": true
+  },
+  "tensorflow_version": "2.21.0"
+}

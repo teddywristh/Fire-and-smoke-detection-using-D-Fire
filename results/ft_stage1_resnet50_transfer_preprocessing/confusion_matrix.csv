@@ -1,0 +1,5 @@
+true_label,fire,nofire,smoke,smokefire
+fire,142,3,1,54
+nofire,5,194,1,0
+smoke,0,1,188,11
+smokefire,2,0,96,102
