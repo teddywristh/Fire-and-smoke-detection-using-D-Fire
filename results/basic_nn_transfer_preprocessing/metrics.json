@@ -1,0 +1,50 @@
+{
+  "test_accuracy": 0.6025000214576721,
+  "test_loss": 0.9899076223373413,
+  "macro_f1": 0.5846025144593587,
+  "misclassified_count": 318,
+  "parameter_count": 3180164,
+  "best_epoch": 15,
+  "best_val_loss": 0.6383549571037292,
+  "class_names": [
+    "fire",
+    "nofire",
+    "smoke",
+    "smokefire"
+  ],
+  "image_size": [
+    64,
+    64
+  ],
+  "seed": 42,
+  "preprocessing": {
+    "source": "processed_filepath",
+    "manifest": "data/split.csv",
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "resize": "bilinear, antialias=True",
+    "augmentation": "horizontal_flip"
+  },
+  "training_config": {
+    "dense_units": [
+      256,
+      128
+    ],
+    "dropout": [
+      0.3,
+      0.2
+    ],
+    "learning_rate": 0.0003,
+    "batch_size": 32,
+    "epochs": 30
+  },
+  "tensorflow_version": "2.21.0"
+}
