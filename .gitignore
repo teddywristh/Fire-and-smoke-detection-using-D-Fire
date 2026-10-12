@@ -4,8 +4,9 @@ __pycache__/
 .vscode/
 .env
 
-# Raw images live outside the repository (the notebooks find or download them).
-data/
+# Images stay outside the repository; only the split manifest the notebooks read is tracked.
+data/*
+!data/split.csv
 
 # Checkpoints are rebuilt by the notebooks.
 models/
