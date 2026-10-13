@@ -10,3 +10,5 @@ data/*
 
 # Checkpoints are rebuilt by the notebooks.
 models/
+results/
+scripts/
