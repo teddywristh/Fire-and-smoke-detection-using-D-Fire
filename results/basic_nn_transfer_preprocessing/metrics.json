@@ -1,11 +1,11 @@
 {
   "test_accuracy": 0.6025000214576721,
-  "test_loss": 0.9899076223373413,
-  "macro_f1": 0.5846025144593587,
+  "test_loss": 0.9972820281982422,
+  "macro_f1": 0.5918856573413749,
   "misclassified_count": 318,
   "parameter_count": 3180164,
-  "best_epoch": 15,
-  "best_val_loss": 0.6383549571037292,
+  "best_epoch": 27,
+  "best_val_loss": 0.6351322531700134,
   "class_names": [
     "fire",
     "nofire",

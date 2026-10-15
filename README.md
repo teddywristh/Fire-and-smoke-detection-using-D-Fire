@@ -60,19 +60,13 @@ Kiểm tra cấu hình ở bước 1, sau đó chọn **Restart Kernel and Run A
 
 ### Train lại
 
-```python
-USE_CHECKPOINTS = False
-```
+`USE_CHECKPOINTS = True` được cố định trong cả 4 notebook, không cần chỉnh. Muốn train lại model nào thì xóa hoặc chuyển file `.keras` của model đó ra khỏi `models/` (tên file ở bảng bên dưới); notebook không thấy checkpoint sẽ tự train.
 
 Riêng notebook 01, giữ `PREPARE_IMAGES = False` để dùng ảnh processed có sẵn.
 
 Notebook sẽ train, chọn checkpoint theo validation loss rồi đánh giá trên test. Train lại sẽ ghi đè model và kết quả cùng tên. Notebook 03–04 cần internet ở lần đầu để tải trọng số ImageNet nếu máy chưa có cache. Nên dùng GPU khi train CNN và transfer learning; CPU sẽ chậm hơn.
 
 ### Dùng checkpoint có sẵn
-
-```python
-USE_CHECKPOINTS = True
-```
 
 Cần checkpoint đúng tên trong `models/` và `training_history.csv` tương ứng trong `results/`. Thiếu checkpoint thì notebook tự train. Có checkpoint nhưng thiếu history thì bước vẽ biểu đồ sẽ báo lỗi.
 
@@ -102,7 +96,7 @@ DATASET_ROOT = Path(r"D:\dataset\Forest Fire_Dataset")
 
 `DATASET_ROOT` phải chứa train/val/test với tên ảnh khớp `data/split.csv`. Notebook kiểm tra ảnh, chỉnh EXIF, chuyển RGB, resize 224×224 và lưu JPEG chất lượng 95.
 
-Ảnh và manifest mới lưu ở `data/basic_nn_processed/`. Model được train lại, lưu ở `models/basic_nn_prepared.keras`; kết quả ở `results/basic_nn_prepared/`. Bước này chỉ phục vụ Basic NN, không thay đổi dữ liệu của notebook 02–04.
+Ảnh và manifest mới lưu ở `data/basic_nn_processed/`. Model được train lại, lưu ở `models/basic_nn_prepared.keras` (nếu file này đã có thì notebook dùng lại, muốn train lại thì xóa nó); kết quả ở `results/basic_nn_prepared/`. Bước này chỉ phục vụ Basic NN, không thay đổi dữ liệu của notebook 02–04.
 
 ## 6. Kết quả và lỗi thường gặp
 
